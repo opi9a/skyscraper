@@ -13,7 +13,7 @@ bootstrap = Bootstrap(app)
 @app.route('/')
 def home():
     
-    DAYS_TO_GET = 3
+    DAYS_TO_GET = 7
 
     # raw outputs are just lists of shows
     sky_raw = skyscraper.get_shows(DAYS_TO_GET)
