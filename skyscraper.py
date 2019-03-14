@@ -17,12 +17,6 @@ TRIM_STRINGS = [
     'live',
 ]
 
-def test_sub(search_string, re_string= r'^(live)?[ :]*((nfl)|(nba))?[ :]*'):
-
-    RE = re.compile(re_string, re.IGNORECASE)
-
-    return re.sub(RE, '', search_string)
-
 def is_game(title):
 
     # drop non games
@@ -41,6 +35,7 @@ def is_game(title):
             is_game = False
 
     return is_game
+
 
 def clean_title(title):
 
@@ -237,10 +232,15 @@ def tidy_shows(shows_list, games_only=True):
 
     link_url_base = "https://www.skysports.com/"
 
+    cutoff_time = pd.datetime.now() - pd.Timedelta('3 hours')
+
     for show in sorted(shows_list, key=lambda x: x['datetime']):
 
         # winnow out non-games
         if games_only and not is_game(show['title']):
+            continue
+
+        if show['datetime'] < cutoff_time:
             continue
 
         # make the tidied entry for the show
