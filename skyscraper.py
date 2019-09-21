@@ -1,13 +1,25 @@
+
+import os
+from os import get_terminal_size
+import sys
+from collections import OrderedDict
+import pickle
+import argparse
+import getpass
+
+import subprocess
+import requests
 from bs4 import BeautifulSoup
 import re
-import requests
-from datetime import datetime as dt
-from datetime import timedelta
-from collections import OrderedDict
-import calendar
-from pprint import pprint
-from operator import itemgetter
+
 import pandas as pd
+
+from termcolor import cprint, colored
+
+from mylogger import get_timelog
+
+USER = getpass.getuser()
+BASE_PATH = '/home/' + USER + '/shared/projects/skyscraper/'
 
 # strings to trim off if at start of title (with variants)
 TRIM_STRINGS = [
@@ -17,7 +29,74 @@ TRIM_STRINGS = [
     'live',
 ]
 
+
+def games_by_game(games):
+    """
+    For an input list of a day's worth of games, group by title
+    """
+
+    day_games = OrderedDict()
+    print('in it')
+    return sorted(games, key=lambda x: x['title'])
+
+
+def print_games(tidied, days=1, by_title=True):
+    """
+    Show games on command line.
+    """
+    log.info("new call to print games")
+
+    term_cols = get_terminal_size()[0]
+
+    pad2, pad3 = 28, 12
+
+    pad1 = term_cols - pad2 - (pad3 * 2) - 3
+
+    for i, day in enumerate(tidied):
+        if i == days:
+            break
+
+        print("")
+        cprint(" " + tidied[day]['day'], attrs=['bold'])
+        print("")
+
+        # avoid duplicates (may be different channels)
+        games_printed = set()
+
+        games_to_print = tidied[day]['games']
+
+        if by_title:
+            games_to_print = sorted(games_to_print, key=lambda x: x['title'])
+
+        last_title = None
+
+        for game in games_to_print:
+
+            out_str = "".join([
+                game['title'][:pad1].ljust(pad1),
+                game['channel'].split()[0][:pad2].rjust(pad2),
+                game['type'][:pad3].rjust(pad3),
+                game['time'][:pad3].rjust(pad3)
+            ])
+
+            if last_title is not None and game['title'] != last_title:
+                out_str = "\n "+ out_str 
+
+            if out_str not in games_printed:
+                print(" " + out_str)
+                games_printed.add(out_str)
+
+            if by_title:
+                last_title = game['title']
+
+    log.info("finished printing games")
+
+
 def is_game(title):
+    """
+    Boolean test for whether a title is a game, and does not
+    contain one of a list of excluded flags.
+    """
 
     # drop non games
     drop_flags = [
@@ -38,13 +117,19 @@ def is_game(title):
 
 
 def clean_title(title):
+    """
+    Tidies up a title, trimming a number of common undesirable elements.
+    """
 
     REs = [
+        # trim 'nba' or 'nfl', with or without 'live' prepend
         re.compile(r'^(live)?[ :]*((nfl)|(nba))?[ :-]*',
                    re.IGNORECASE),
 
+        # trim variants of 'hlts'
         re.compile(r'\s?\bhlts?\b[ :]*', re.IGNORECASE),
 
+        # trim prepended 'cycling' and variants
         re.compile(r'^cycling[ :-]*(?=\w)',
                    re.IGNORECASE),
     ]
@@ -55,7 +140,67 @@ def clean_title(title):
     return title
 
 
-def get_shows(number_days, _debug=False):
+def get_cached(type, number_days, dir_path=BASE_PATH):
+    """
+    Return cached raw list of shows if it exists.
+    Type from ['sky', 'eurosport']
+    """
+
+    cached_dir_path = os.path.join(dir_path, 'cached_raw', type)
+    now = pd.datetime.now()
+    today_string = now.strftime("%d-%m-%Y")
+
+    # get files with today_string
+    today_files = [f for f in os.listdir(cached_dir_path)
+                     if f.startswith(today_string)]
+
+    # stop if no files for today
+    if not today_files:
+        return False
+
+    # stop if files for today but not long enough
+    max_days_hence = max([int(x.split('_')[1].split('d')[0])
+                  for x in today_files])
+
+    if max_days_hence < number_days:
+        return False
+
+    file_to_load = os.path.join(cached_dir_path,
+                              f'{today_string}_{max_days_hence}d.pkl')
+
+    with open(file_to_load, 'rb') as fp:
+        cached = pickle.load(fp)
+
+    return cached
+
+
+def get_raw_sky_shows(number_days, _debug=False, use_cached=True,
+                      dir_path=BASE_PATH):
+    """
+    Main function for retrieving sky shows.
+
+    Returns a raw list of shows, each a dict with fields:
+        - title
+        - channel
+        - datetime (pandas timestamp format)
+        - duration (int, minutes)
+        - show_type (if found: replay, live etc)
+
+    Works by calling get_sky_games_day() for each in a series of
+    days into the future - each of which has a separate web page.
+    """
+
+    log.info('getting sky shows')
+    now = pd.datetime.now()
+    today_string = now.strftime("%d-%m-%Y")
+
+    # see if it exists already
+    if use_cached:
+        log.info('looking for cached sky games')
+        cached = get_cached('sky', number_days, dir_path=dir_path)
+        if cached:
+            log.info(f'found {len(cached)} cached shows')
+            return cached
 
     url_base = "http://www.skysports.com/watch/tv-guide/"
 
@@ -65,36 +210,51 @@ def get_shows(number_days, _debug=False):
 
     for i in range(number_days):
 
+        # do the scraping for the day
         day_string = now.strftime("%d-%m-%Y")
         url = url_base + day_string 
 
-        print('getting', url)
+        log.info('getting sky shows for ' + day_string)
+        log.info('url: ' + url)
         req = requests.get(url)
 
         if not req.ok:
-            print('FAILED')
+            print('FAILED to get', url)
             continue
 
         soup = BeautifulSoup(req.text, "html.parser")
 
+        # check if channels table has been populated yet or nah
         if channels_table is None:
             channels_table = get_sky_channels_table(soup)
 
-        list_out.extend(get_sky_games_day(soup, channels_table, now))
+        # actually get the list of parsed games for this day
+        day_games = get_sky_games_day(soup, channels_table, now)
+        log.info(f'found {len(day_games)} games')
+
+        # add to the list of games
+        list_out.extend(day_games)
 
         now += pd.Timedelta('1 days')
 
-    return list_out
+    # save out
+    path_out = os.path.join(dir_path, 'cached_raw', 'sky',
+                            f'{today_string}_{number_days}d.pkl')
 
+    log.info(" ".join(['found', str(len(path_out)), 'raw records']))
+    log.info(" ".join(['saving to', path_out]))
+
+    with open(path_out, 'wb') as fp:
+        pickle.dump(list_out, fp)
+
+    return list_out
 
 
 def get_sky_channels_table(soup):
     """
     Return a list of ID numbers for channels.
     These numbers appear in the listings for each program, giving a 
-    different (better) way of assigning channel.
-
-    Not yet implemented
+    way of assigning channels to shows.
     """
 
     id_re = re.compile(r"channels/([\d]+)")
@@ -113,7 +273,10 @@ def get_sky_channels_table(soup):
 
 def get_sky_games_day(soup, channels_table, date):
     """
-    Called by get_shows.  Processes the soup.
+    Parses the sky soup for a day and returns
+    a list of qualifying shows (['nba', 'nfl']) for that day.
+    
+    Called by get_raw_sky_shows which does the scraping and makes the soup. 
     """
 
     SKY_RE = re.compile(r'\bnba\b|\bnfl\b', re.IGNORECASE)
@@ -154,33 +317,57 @@ def get_sky_games_day(soup, channels_table, date):
     return games
 
 
-def get_eurosport_cycling():
+def get_raw_eurosport_shows(number_days=7, use_cached=True, raw_text=None,
+                            dir_path=BASE_PATH):
     """
-    Scrapes all shows from eurosport schedule and returns dict of cycling 
-    shows, with following fields:
+    Scrapes all shows from eurosport schedule and returns list of dicts
+    of cycling shows, with following fields:
         - title
         - channel (Eurosport 1 or 2)
         - datetime (pandas timestamp format)
         - duration (int, minutes)
         - show_type (if found: replay, live etc)
+
+    Pass html to raw_text to avoid scraping (debug only)
     """
+    log.info('getting eurosport shows')
     
+    # see if it exists already
+    if use_cached:
+        log.info('looking for cached eurosport games')
+        cached = get_cached('eurosport', number_days, dir_path=dir_path)
+        if cached:
+            log.info(f'found {len(cached)} cached shows')
+            return cached
+
     target = re.compile(r"[C|c]ycling")   
 
-    url = "https://www.eurosport.co.uk/eurosport-tv-schedule.shtml"
-    req = requests.get(url)
+    if raw_text is None:
 
-    if not req.ok:
-        print('could not get', url, 'exiting')
-        return 1
+        url = "https://www.eurosport.co.uk/eurosport-tv-schedule.shtml"
 
-    soup = BeautifulSoup(req.text, "html.parser")
+        # REQUESTS STOPPED WORKING for this url 12/9/2019, so using curl
+        # req = requests.get(url)
+
+        # if not req.ok:
+        #     print('could not get', url, 'exiting')
+        #     return 1
+
+        # raw_text = req.text
+
+        raw_text = subprocess.run(['curl', url], stdout=subprocess.PIPE).stdout
+
+    soup = BeautifulSoup(raw_text, "html.parser")
+
+    # need an initial cut to get rid of games on now (duplicated below)
+    soup = soup.find('div', {'class': 'all-schedule'})
 
     bottom_level = soup.find_all("div",
                                  {"class": "tv-program__event"},
                                  text=target)
 
     raw_shows = [s.parent.parent for s in bottom_level]
+
     shows_out = []
 
 
@@ -205,7 +392,18 @@ def get_eurosport_cycling():
 
         shows_out.append(show_dict)
 
+    # save out
+    now = pd.datetime.now()
+    today_string = now.strftime("%d-%m-%Y")
+    path_out = os.path.join(dir_path, 'cached_raw', 'eurosport',
+                            f'{today_string}_{number_days}d.pkl')
 
+    log.info('saving to ' + path_out)
+
+    with open(path_out, 'wb') as fp:
+        pickle.dump(shows_out, fp)
+
+    log.info('length shows_out ' + str(len(shows_out)))
     return shows_out
 
 
@@ -234,6 +432,7 @@ def tidy_shows(shows_list, games_only=True):
 
     cutoff_time = pd.datetime.now() - pd.Timedelta('3 hours')
 
+    i = 0
     for show in sorted(shows_list, key=lambda x: x['datetime']):
 
         # winnow out non-games
@@ -272,7 +471,6 @@ def tidy_shows(shows_list, games_only=True):
 
         shows_by_day[date]['games'].append(game)
 
-
     return shows_by_day
 
 
@@ -309,21 +507,6 @@ def infer_type(game):
     return 'Unknown'
 
 
-def join_tidied(sky_tidy, cycling_tidy):
-    """
-    Join tidied ordered dicts.
-    Just extend the games list for each day, taking sky as the start point.
-    """
-
-    if not cycling_tidy:
-        return sky_tidy
-
-    for day in sky_tidy:
-        sky_tidy[day]['games'].extend(cycling_tidy[day]['games'])
-    
-    return sky_tidy
-
-
 def get_by_game(tidied):
     '''Takes a dict organised by date, and returns on organised by game (then date)
     '''
@@ -347,3 +530,32 @@ def get_by_game(tidied):
     by_game.pop('Redzone', None)
 
     return by_game
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='print coming sky shows')
+    parser.add_argument('days_hence', nargs='?', default=1, type=int)
+    parser.add_argument('-p', '--dir-path', default=BASE_PATH)
+
+    args = parser.parse_args()
+
+    print(args)
+
+    # set up a logger
+    log = get_timelog(os.path.join(args.dir_path, 'logs/skyscraper.log.txt'))
+    
+    log.info("="*50)
+    log.info(f"main script called for {args.days_hence} days")
+
+    # these raw outputs are lists of shows
+    # each show a dict with sensible keys ('title', 'datetime' etc)
+    # mainly overlapping between sky and eurosport
+    cycling_raw = get_raw_eurosport_shows(dir_path=args.dir_path)
+    sky_raw = get_raw_sky_shows(args.days_hence, dir_path=args.dir_path)
+
+    # make them into a structure based on days
+    tidied = tidy_shows(sky_raw + cycling_raw)
+
+    print_games(tidied, args.days_hence)
+    print("")
