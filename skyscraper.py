@@ -197,7 +197,7 @@ def get_raw_sky_shows(number_days, _debug=False, use_cached=True,
     # see if it exists already
     if use_cached:
         log.info('looking for cached sky games')
-        cached = get_cached('sky', number_days)
+        cached = get_cached('sky', number_days, dir_path=dir_path)
         if cached:
             log.info(f'found {len(cached)} cached shows')
             return cached
@@ -551,8 +551,8 @@ if __name__ == "__main__":
     # these raw outputs are lists of shows
     # each show a dict with sensible keys ('title', 'datetime' etc)
     # mainly overlapping between sky and eurosport
-    cycling_raw = get_raw_eurosport_shows()
-    sky_raw = get_raw_sky_shows(args.days_hence)
+    cycling_raw = get_raw_eurosport_shows(dir_path=args.dir_path)
+    sky_raw = get_raw_sky_shows(args.days_hence, dir_path=args.dir_path)
 
     # make them into a structure based on days
     tidied = tidy_shows(sky_raw + cycling_raw)
