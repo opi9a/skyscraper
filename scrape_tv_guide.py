@@ -7,9 +7,9 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import json
+import pandas as pd
 
 from skyscraper_constants import DATA_DIR
-from Show import Show
 
 BASE_URL = "https://www.tvguide.co.uk/mobile/channellisting.asp?ch="
 CHANNELS_JSON_FP = DATA_DIR / 'channels/channels.json'
@@ -18,9 +18,23 @@ DATE_FMT = "%Y %m %d"
 TIME_FMT = "%H:%M"
 DT_FMT = " ".join([DATE_FMT, TIME_FMT])
 
+def get_show():
+    # just a factory for a series with right index
+    return pd.Series(index = [
+            "title",
+            "subtitle",
+            "channel",
+            "link",
+            "start_time_raw",
+            "start_dt",
+            "end_dt",
+            "duration",
+        ]
+    )
+
 
 def get_raw_shows(channel, soup=None, verbose=True,
-                  just_return_soup=False):
+                  just_return_soup=False, return_df=True):
     """
     Return a list of the available shows from the passed channel dict
     of form:
@@ -67,13 +81,8 @@ def get_raw_shows(channel, soup=None, verbose=True,
                 'date_out': date_out,
                 'time_raw': elem.find(attrs={'class': 'time'}).text,
                 'title': elem.find(attrs={'class': 'title'}).text.strip(),
-
-                # detail is a bit hacky but works right now
-                'detail': (
-                    elem.find(attrs={'class': 'detail'})
-                        .contents[2].strip()
-                          ),
-
+                'detail': (elem.find(attrs={'class': 'detail'}).text.strip()
+                           .replace('/', ' - ')),
                 'link': elem.find('a').get('href'),
             }
 
@@ -81,17 +90,24 @@ def get_raw_shows(channel, soup=None, verbose=True,
 
             # if not first tr, go back and set the prev one's duration
             if len(raw_shows) > 1:
-                dur_sec = ((raw_shows[-1].start_dt
-                            - raw_shows[-2].start_dt).total_seconds())
-                raw_shows[-2].duration = int(dur_sec / 60)
-                raw_shows[-2].end_dt = (raw_shows[-2].start_dt
+                dur_sec = ((raw_shows[-1]['start_dt']
+                            - raw_shows[-2]['start_dt']).total_seconds())
+
+                # this means it's a new day (raw_dt doesn't incr until 5am)
+                if dur_sec < 0:
+                    raw_shows[-1]['start_dt'] += timedelta(days=1)
+                    dur_sec += 60 * 60 * 24
+
+                raw_shows[-2]['duration'] = int(dur_sec / 60)
+                raw_shows[-2]['end_dt'] = (raw_shows[-2]['start_dt']
                                         + timedelta(seconds=dur_sec))
+
 
 
     if verbose:
         print('found', len(raw_shows))
 
-    return raw_shows
+    return pd.concat(raw_shows, axis=1).T
 
 
 def tidy_raw_show(raw_show):
@@ -99,7 +115,7 @@ def tidy_raw_show(raw_show):
     Make a Show from raw show
     """
 
-    show = Show()
+    show = get_show()
 
     show['channel'] = raw_show['channel']
     show['title'] = raw_show['title']

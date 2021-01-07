@@ -5,14 +5,19 @@ from os import get_terminal_size
 from termcolor import cprint, colored
 from skyscraper_constants import LOG
 
-FIELDS_TO_PRINT = ['channel', 'day', 'title', 'subtitle', 'start_dt', 'end_dt']
+FIELDS_TO_PRINT = ['channel', 'day', 'title', 'subtitle', 'start_time_str', 'end_time_str']
 
 BASE_COL_WIDTHS = {
     # only the fixed ones, others looked up
-    'day': 8, # Wed 28th
-    'start_dt': 5, # 16:30
-    'end_dt': 5, # 17:30
+    'title': None,
+    'subtitle': None,
+    'c_day': 8, # Wed 28th
+    'c_channel': 8, # Sky Main
+    'start_time_str': 5, # 16:30
+    'end_time_str': 5, # 17:30
 }
+
+
 
 LONG_DAY_FMT = "%A %d %B"
 SHORT_DAY_FMT = "%a %d"
@@ -21,10 +26,22 @@ class Printer():
     """
     Object to hold printing info and do the printing
 
-    1. make dict by group_by field ('channel', 'day')
+    if channel:
+        title, subtitle, c_day, start, end
+
+    if day:
+        title, subtitle, c_channel, start, end
+
+    1. df
+    2. work out max col widths (have this already?)
+    3. list of channels or days
+    4. for each:
+        get df selection eg df.loc['channel' == channel]
+        print title eg Sky Sports Mix
+        for each row
     2. get column widths for fields to print:
         - channel or day
-        - 'title', 'subtitle', ['c_channel' or 'c_day'] 'start_dt', 'end_dt'
+        - 'title', 'subtitle', ['c_channel' or 'c_day'] 'start_time_str', 'end_time_str'
         - 'c_day' and 'c_channel' are day and channel in compressed format
 
     3. get justified entries, one dict per show:
@@ -35,66 +52,82 @@ class Printer():
     4. do the actual printing
     """
 
-    def __init__(self, shows, group_by='channel', max_show_rows=10):
+    def __init__(self, df, group_by='channel', max_show_rows=10):
 
-        # make dicts with keys of group_by field, vals of show lists
-        if group_by == 'channel':
-            # show['c_day'] = show['start_dt'].strftime(SHORT_DAY_FMT)
-            shows = [{
-                'title': show['title'],
-                'subtitle': show['subtitle'],
-                'channel': show['channel'],
-                'start_dt': show['start_dt'],
-                'end_dt': show['end_dt'],
-                'c_day': show['start_dt'].strftime(SHORT_DAY_FMT)
-            } for show in shows]
-
-            channels = {show['channel'] for show in shows}
-            self.shows = {channel: [] for channel in channels}
-
-            for show in shows:
-                self.shows[show['channel']].append(show)
-
-        elif group_by == 'day':
-
-            shows = [{
-                'title': show['title'],
-                'subtitle': show['subtitle'],
-                'c_channel': compress_channel(show['channel']),
-                'start_dt': show['start_dt'],
-                'end_dt': show['end_dt'],
-                'long_day': show['start_dt'].strftime(LONG_DAY_FMT)
-            } for show in shows]
-
-            long_days = list({show['long_day'] for show in shows})
-            long_days.sort(key= lambda x: datetime.strptime(x, LONG_DAY_FMT))
-
-            self.shows = {long_day: [] for long_day in long_days}
-
-            for show in shows:
-                self.shows[show['long_day']].append(show)
+        self.df = df
+        self.max_lens = get_max_lens(df) # lengths of show fields
+        self.col_widths = get_col_widths(self.max_lens, get_terminal_size()[0])
 
 
-        self.term_cols = get_terminal_size()[0]
-        # self.max_lens = get_max_lens(self.shows) # lengths of show fields
-
-
-def print_show(show, col_widths):
+def print_show(show, col_widths, to_skip='c_day'):
     """
     Given col_widths, print the show
     """
 
-    pass
+    col_widths = col_widths.copy()
+    del col_widths[to_skip]
+
+    # want a dict, keys are fields, vals are lists of strings for each line
+    by_line = {}
+
+    for field in col_widths:
+        if field in ['title', 'subtitle']:
+            by_line[field] = split_line(show[field], col_widths[field])
+        else:
+            by_line[field] = [show[field]]
+
+    max_lines = len(max(by_line.values(), key=lambda x: len(x)))
+
+    for i in range(max_lines):
+        for field, lines in by_line.items():
+            if i < len(lines):
+                print(lines[i].ljust(col_widths[field]), end=' ')
+            else:
+                print("".ljust(col_widths[field]), end=' ')
+
+        print()
+
+    print()
+
+
+
+    # pass
+
+
+def get_max_lens(df):
+    """
+    Return the max length across each field in the passed shows
+    """
+
+    # set up empty dict for the variable fields
+    out = BASE_COL_WIDTHS.copy()
+
+    for field in ['title',  'subtitle', 'c_channel', 'c_day']:
+        out[field] = max(df[field].apply(len)) 
+
+    return out
 
 
 def get_col_widths(max_lens, term_size):
     """
     Return the col_widths to use
     Only title and subtitle to vary
+    (max_lens dict will have c_day and c_channel, both not needed, but same size)
     """
+    # work out cols taken by invariants
+    # ignore c_channel, as one of it or c_day (same size) will be excluded
+    pad = 1
+    const_widths_sum = sum(v + pad for k, v in BASE_COL_WIDTHS.items()
+                           if k in ['c_day', 'start_time_str', 'end_time_str'])
 
-    pass
+    cols_avail = term_size - const_widths_sum
 
+    sub_main_ratio = 3
+    out = BASE_COL_WIDTHS.copy()
+    out['title'] = min(int(cols_avail / sub_main_ratio), max_lens['title'])
+    out['subtitle'] = min(cols_avail - out['title'], max_lens['subtitle'])
+
+    return out
 
 
 def split_line(line, max_width):
@@ -108,52 +141,16 @@ def split_line(line, max_width):
     out = [""]
 
     for word in line.split():
-        print(word)
-
         # if the new word would overshoot, start a new line
         if len(word) + len(out[-1]) >= max_width:
             out.append(word)
         else:
             out[-1] = " ".join([out[-1], word])
-        print('out after', out)
 
     out[0] = out[0].strip()
 
     return out
 
-
-
-def compress_channel(channel_name):
-    """
-    Make a compressed version
-    """
-
-    channel_name = channel_name.replace('Sky Sports', 'Sky')
-    channel_name = channel_name.replace('Eurosport', 'Eur')
-    channel_name = channel_name.replace(' Event', '')
-
-    return channel_name
-
-
-
-def get_max_lens(shows):
-    """
-    Return the max length across each field in the passed shows
-    """
-
-    # set up empty dict for the variable fields
-    maxes = {
-        'title': 0,
-        'subtitle': 0,
-        'channel': 0,
-        'c_channel': 0,
-    }
-
-    for field in maxes:
-        longest = max(shows, key= lambda x: len(x[field]))
-        maxes[field] = len(longest[field])
-
-    return maxes
 
 
 def print_shows(shows, sort_by='channel', log=LOG):
@@ -185,7 +182,7 @@ def print_shows(shows, sort_by='channel', log=LOG):
                 if field == sort_by:
                     continue
                 elif field == 'day':
-                    print(show['start_dt'].strftime("%a"), end=" ")
+                    print(show['start_time_str'].strftime("%a"), end=" ")
 
                 elif field.endswith('dt'):
                     try:

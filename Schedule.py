@@ -3,9 +3,9 @@
 from pathlib import Path
 import json
 from datetime import datetime
+import pandas as pd
 
 from skyscraper_constants import DATA_DIR
-from Show import Show
 from scrape_tv_guide import get_channels_table, get_raw_shows
 
 """
@@ -26,30 +26,34 @@ CHANNELS = ['Eurosport 1',
 DAILY_PREFIX = "tvg_raw_shows_"
 DATE_FMT = "%Y-%m-%d"
 
+# for printing
+LONG_DAY_FMT = "%A %d %B"
+SHORT_DAY_FMT = "%a %d"
+TIME_FMT = "%H:%M"
+
+
 class Schedule():
 
     def __init__(self, channels=None, data_dir=None,
-                 channels_json_fp=None,
                  update_todays=False, save_shows=True,
-                 raw_shows=None):
+                 df=None):
         """
         Get listings for the channels, save to data_dir
-
-
         """
 
         # first check if there is a scrape saved today already
         data_dir = data_dir or DATA_DIR
         self.date_str = datetime.now().strftime(DATE_FMT)
-        self.save_fp = DATA_DIR / "".join([DAILY_PREFIX, self.date_str, '.json'])
+        self.save_fp = DATA_DIR / "".join([DAILY_PREFIX, self.date_str, '.csv'])
 
-        if raw_shows is not None:
-            self.raw_shows = raw_shows
+        if df is not None:
+            self.df = df
 
         elif not update_todays and self.save_fp in list(data_dir.iterdir()):
             print('found saved shows for today,', self.date_str)
 
-            self.from_json()
+            self.df = pd.read_csv(self.save_fp, index_col=0)
+            print('loaded from', self.save_fp)
 
 
         else:
@@ -61,14 +65,21 @@ class Schedule():
             self.channels_table = [x for x in get_channels_table()
                                    if x['name'] in channels]
 
-            # raw_shows is just a list, not organised
-            self.raw_shows = []
+            # df is best to store this
+            df = pd.concat([get_raw_shows(channel)
+                            for channel in self.channels_table])
 
-            for channel in self.channels_table:
-                self.raw_shows.extend(get_raw_shows(channel))
+            df['c_channel'] = df.channel.apply(compress_channel)
+            df['c_day'] = df.start_dt.apply(compress_day)
+            df['long_day'] = df.start_dt.dt.strftime(LONG_DAY_FMT)
+            df['start_time_str'] = df.start_dt.dt.strftime(TIME_FMT)
+            df['end_time_str'] = df.end_dt.dt.strftime(TIME_FMT)
+
+            self.df = df.fillna('NA')
 
             if save_shows:
-                self.to_json()
+                self.df.to_csv(self.save_fp)
+                print('saved to', self.save_fp)
 
 
         # filtering. set up strings for each filterable field
@@ -100,7 +111,7 @@ class Schedule():
             print('with field', field, 'target', target)
             if target is None:
                 continue
-            for show in self.raw_shows:
+            for show in self.df:
                 if target.lower() in show[field].lower():
                     print('matched', target, 'in', show[field].lower())
                     selected.append(show)
@@ -110,36 +121,32 @@ class Schedule():
         self.shows_selection = sorted(selected, key= lambda x: x[self.sort_by])
 
 
+DAY_SUFFIXES = { 1: 'st', 2: 'nd', 3: 'rd',
+                21: 'st', 22: 'nd', 23: 'rd', 31: 'st'}
 
-    def from_json(self, load_path=None):
-        """
-        Load shows as dicts and convert
-        """
+def compress_day(dt):
+    """
+    From datetime obj, get day in format Thu 9th
+    """
 
-        load_path = load_path or self.save_fp
+    out =  "".join([
+        dt.strftime(SHORT_DAY_FMT),
+        DAY_SUFFIXES.get(dt.day, 'th')
+    ])
 
-        with open(load_path, 'r') as fp:
-            show_dicts = json.load(fp)
-
-        for show_dict in show_dicts:
-            for dt in ['start_dt', 'end_dt']:
-                if show_dict[dt] is not None:
-                    show_dict[dt] = datetime.fromisoformat(show_dict[dt])
-
-        self.raw_shows = [Show(show_dict=s) for s in show_dicts]
+    return out.replace(' 0', ' ')
 
 
-    def to_json(self, save_path=None):
-        """
-        Convert the shows and save them
-        """
+def compress_channel(channel_name):
+    """
+    Make a compressed version
+    """
 
-        save_path = save_path or self.save_fp
+    channel_name = channel_name.replace('Sky Sports', 'Sky')
+    channel_name = channel_name.replace('Eurosport', 'Eur')
+    channel_name = channel_name.replace(' Event', '')
 
-        with open(save_path, 'w') as fp:
-            json.dump([x.__dict__ for x in self.raw_shows], fp,
-                      default=str, indent=4)
+    return channel_name
 
-        print('saved shows to', save_path)
 
 
