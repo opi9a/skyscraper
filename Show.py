@@ -6,20 +6,6 @@ Helper class to hold info on a tv show
 import json
 import pandas as pd
 
-def get_show():
-    # just a factory for a series with right index
-    return pd.Series(index = [
-            "title",
-            "subtitle",
-            "channel",
-            "link",
-            "start_time_raw",
-            "start_dt",
-            "end_dt",
-            "duration",
-        ]
-    )
-
 # class Show():
 #     """
 #     Class to hold show info

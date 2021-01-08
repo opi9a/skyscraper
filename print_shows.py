@@ -17,52 +17,54 @@ BASE_COL_WIDTHS = {
     'end_time_str': 5, # 17:30
 }
 
-
+SUB_MAIN_RATIO = 3 # ratio of width of subtitle and title columns
+MAX_SHOW_ROWS = 5
 
 LONG_DAY_FMT = "%A %d %B"
 SHORT_DAY_FMT = "%a %d"
 
-class Printer():
+
+def print_df(df, col_widths=None, group_by='long_day',
+             screen_width=None, max_show_rows=None):
     """
-    Object to hold printing info and do the printing
+    Print the df, splitting by channel or day
+    """
+    screen_width = screen_width or get_terminal_size()[0] - 2
+    max_show_rows = max_show_rows or MAX_SHOW_ROWS
 
-    if channel:
-        title, subtitle, c_day, start, end
+    if col_widths is None:
+        max_lens = get_max_lens(df)
+        col_widths = get_col_widths(max_lens, screen_width)
 
-    if day:
-        title, subtitle, c_channel, start, end
+    headings = df[group_by].unique()
 
-    1. df
-    2. work out max col widths (have this already?)
-    3. list of channels or days
-    4. for each:
-        get df selection eg df.loc['channel' == channel]
-        print title eg Sky Sports Mix
-        for each row
-    2. get column widths for fields to print:
-        - channel or day
-        - 'title', 'subtitle', ['c_channel' or 'c_day'] 'start_time_str', 'end_time_str'
-        - 'c_day' and 'c_channel' are day and channel in compressed format
+    for heading in headings:
+        pad1 = int((screen_width - len(heading)) / 2)
+        pad2 = screen_width - len(heading) - pad1 - 1
+        print()
+        print('-' * pad1, end = ' ')
+        cprint(heading, attrs=['bold'], end=' ')
+        print('-' * pad2)
 
-    3. get justified entries, one dict per show:
-        - field names as keys
-        - list of strings as values, each string a line to print
-          for that field
+        if max_show_rows > 1:
+            print()
 
-    4. do the actual printing
+        sub_df = df.loc[df[group_by] == heading]
+        for i in range(len(sub_df)):
+            print_show(sub_df.iloc[i], col_widths,
+                       group_by=group_by,
+                       max_show_rows=max_show_rows)
+
+
+
+def print_show(show, col_widths, group_by='long_day', max_show_rows=None):
+    """
+    Given col_widths, print the show.  Group by channel or long_day
     """
 
-    def __init__(self, df, group_by='channel', max_show_rows=10):
+    max_show_rows = max_show_rows or MAX_SHOW_ROWS
 
-        self.df = df
-        self.max_lens = get_max_lens(df) # lengths of show fields
-        self.col_widths = get_col_widths(self.max_lens, get_terminal_size()[0])
-
-
-def print_show(show, col_widths, to_skip='c_day'):
-    """
-    Given col_widths, print the show
-    """
+    to_skip = 'c_channel' if group_by == 'channel' else 'c_day'
 
     col_widths = col_widths.copy()
     del col_widths[to_skip]
@@ -76,16 +78,23 @@ def print_show(show, col_widths, to_skip='c_day'):
         else:
             by_line[field] = [show[field]]
 
-    max_lines = len(max(by_line.values(), key=lambda x: len(x)))
+    max_lines = min(
+        max_show_rows,
+        len(max(by_line.values(), key=lambda x: len(x)))
+    )
 
     for i in range(max_lines):
         for field, lines in by_line.items():
-            if i < len(lines):
-                print(lines[i].ljust(col_widths[field]), end=' ')
+            pad = col_widths[field]
+            if i == 0 and not lines[i]:
+                print('-'.ljust(pad), end='')
+            elif i < len(lines):
+                print(lines[i].ljust(pad), end=' ')
             else:
-                print("".ljust(col_widths[field]), end=' ')
+                print("".ljust(pad), end=' ')
 
-        print()
+        if max_show_rows > 1:
+            print()
 
     print()
 
@@ -108,12 +117,14 @@ def get_max_lens(df):
     return out
 
 
-def get_col_widths(max_lens, term_size):
+def get_col_widths(max_lens, term_size, sub_main_ratio=None):
     """
     Return the col_widths to use
     Only title and subtitle to vary
     (max_lens dict will have c_day and c_channel, both not needed, but same size)
     """
+    sub_main_ratio = sub_main_ratio or SUB_MAIN_RATIO
+
     # work out cols taken by invariants
     # ignore c_channel, as one of it or c_day (same size) will be excluded
     pad = 1
@@ -122,7 +133,6 @@ def get_col_widths(max_lens, term_size):
 
     cols_avail = term_size - const_widths_sum
 
-    sub_main_ratio = 3
     out = BASE_COL_WIDTHS.copy()
     out['title'] = min(int(cols_avail / sub_main_ratio), max_lens['title'])
     out['subtitle'] = min(cols_avail - out['title'], max_lens['subtitle'])

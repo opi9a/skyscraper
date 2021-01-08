@@ -7,6 +7,7 @@ import pandas as pd
 
 from skyscraper_constants import DATA_DIR
 from scrape_tv_guide import get_channels_table, get_raw_shows
+from print_shows import print_df
 
 """
 Scripts to scrape listings from the tv_guide.co.uk site
@@ -34,8 +35,11 @@ TIME_FMT = "%H:%M"
 
 class Schedule():
 
-    def __init__(self, channels=None, data_dir=None,
+    def __init__(self, print_df=False, reverse=True,
+                 drop_duplicates=True,
+                 channels=None, data_dir=None,
                  update_todays=False, save_shows=True,
+                 filter_strings=None, exclude_strings=None, no_days=None,
                  df=None):
         """
         Get listings for the channels, save to data_dir
@@ -46,15 +50,13 @@ class Schedule():
         self.date_str = datetime.now().strftime(DATE_FMT)
         self.save_fp = DATA_DIR / "".join([DAILY_PREFIX, self.date_str, '.csv'])
 
+        # load or scrape the raw df of shows (may filter it later)
         if df is not None:
             self.df = df
 
         elif not update_todays and self.save_fp in list(data_dir.iterdir()):
-            print('found saved shows for today,', self.date_str)
 
-            self.df = pd.read_csv(self.save_fp, index_col=0)
-            print('loaded from', self.save_fp)
-
+            self.df = pd.read_csv(self.save_fp, index_col=0).fillna('NA')
 
         else:
 
@@ -69,6 +71,10 @@ class Schedule():
             df = pd.concat([get_raw_shows(channel)
                             for channel in self.channels_table])
 
+            df.index=pd.RangeIndex(0, len(df.index))
+
+            df = df.sort_values('start_dt')
+
             df['c_channel'] = df.channel.apply(compress_channel)
             df['c_day'] = df.start_dt.apply(compress_day)
             df['long_day'] = df.start_dt.dt.strftime(LONG_DAY_FMT)
@@ -81,48 +87,103 @@ class Schedule():
                 self.df.to_csv(self.save_fp)
                 print('saved to', self.save_fp)
 
+        # make the filtered view
+        self.df_filtered = df
 
-        # filtering. set up strings for each filterable field
-        # title subtitle channel
-        # and something for day
-        # also allow sorting
-        # have an attr for the processed list and a method for display
-        # modify the filters, set sorting etc, then display results
-        self.filter_strings = {
-            'title': None,
-            'subtitle': None,
-            'channel': None,
-            'weekday': None,
-        }
-
-        self.sort_by = 'channel' # or 'start_dt'
-
-        self.shows_selection = None
-
-
-    def apply(self):
-        """
-        apply the filters and sorting strategy to generate a new
-        shows_selection attribute
-        """
-        selected = []
-
-        for field, target in self.filter_strings.items():
-            print('with field', field, 'target', target)
-            if target is None:
-                continue
-            for show in self.df:
-                if target.lower() in show[field].lower():
-                    print('matched', target, 'in', show[field].lower())
-                    selected.append(show)
-                    print('now have', len(selected), 'shows')
-
+        self.filter_strings = filter_strings or None
+        self.exclude_strings = exclude_strings or None
+        self.no_days = no_days or None
         
-        self.shows_selection = sorted(selected, key= lambda x: x[self.sort_by])
+        if filter_strings is not None or no_days is not None:
+            self.apply(drop_duplicates=drop_duplicates)
+
+        if print_df:
+            self.print_df(reverse=reverse)
+
+
+    def apply(self, df=None, filter_strings=None, exclude_strings=None,
+              no_days=None, return_df=False, drop_duplicates=True):
+        """
+        Apply the current filter_strings  and no_days to the full df
+        """
+
+        if df is None:
+            df = self.df
+
+        if drop_duplicates:
+            df = df.drop_duplicates(subset=['subtitle', 'start_dt'],
+                                    keep='first')
+
+        no_days = no_days or self.no_days
+        filter_strings = filter_strings or self.filter_strings
+        exclude_strings = exclude_strings or self.exclude_strings
+
+        if no_days is not None:
+            days = df['c_day'].unique()[:no_days]
+            df = df.loc[df['c_day'].isin(days)]
+
+        if filter_strings is not None:
+            df = dfilter(df, filter_strings)
+
+        if exclude_strings is not None:
+            df = dfilter(df, exclude_strings, exclude=True)
+
+        if return_df:
+            return df
+        else:
+            if df is not None:
+                self.df_filtered = df
+            else:
+                self.df_filtered = pd.DataFrame(columns=self.df.columns)
+
+
+
+    def print_df(self, reverse=False, group_by='long_day',
+                 max_rows=None):
+        """
+        print the filtered df
+        """
+
+        if not len(self.df_filtered):
+            print('nothing found with filter', self.filter_strings)
+            return
+
+        if reverse:
+            print_df(self.df_filtered.sort_index(ascending=False),
+                     group_by=group_by, max_show_rows=max_rows)
+        else:
+            print_df(self.df_filtered, group_by=group_by,
+                     max_show_rows=max_rows)
+
+
+def dfilter(df, strings, exclude=False):
+    """
+    Return a view of the df filtered by the passed string
+    vs title and subtitle fields
+    """
+
+    mask = True
+
+    for string in strings:
+
+        string = string.lower()
+
+        condition = (df['title'].str.lower().str.contains(string)
+                     | df['subtitle'].str.lower().str.contains(string))
+
+        if not exclude:
+            mask &= condition
+
+        else:
+            mask &= ~condition
+
+    return df.loc[mask]
+
 
 
 DAY_SUFFIXES = { 1: 'st', 2: 'nd', 3: 'rd',
                 21: 'st', 22: 'nd', 23: 'rd', 31: 'st'}
+
 
 def compress_day(dt):
     """
