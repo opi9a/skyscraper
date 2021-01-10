@@ -5,8 +5,8 @@ import json
 from datetime import datetime
 import pandas as pd
 
-from skyscraper_constants import DATA_DIR, CHANNELS_JSON
-from scrape_tv_guide import get_channels_table, get_raw_shows
+from skyscraper_constants import DATA_DIR
+from scrape_tv_guide import get_raw_shows
 from print_shows import print_df
 
 """
@@ -15,13 +15,16 @@ Scripts to scrape listings from the tv_guide.co.uk site
 Also functions to scrape the channel list - may be needed now and then
 """
 
+# this is a subset of full list - see channels/channels.json
+# (and scrape_channels_table.py to regenerate it)
+CHANNELS = [
+    {'id': 142, 'name': 'Eurosport 1'},
+    {'id': 400, 'name': 'Eurosport 2'},
+    {'id': 1094, 'name': 'Sky Sports NFL'},
+    {'id': 1104, 'name': 'Sky Sports Main Event'},
+    {'id': 1106, 'name': 'Sky Sports Mix'}
+]
 
-CHANNELS = ['Eurosport 1',
-            'Eurosport 2',
-            'Sky Sports NFL',
-            'Sky Sports Main Event',
-            'Sky Sports Mix',
-           ]
 
 # format for saving to disk
 DAILY_PREFIX = "tvg_raw_shows_"
@@ -62,12 +65,8 @@ class Schedule():
 
         else:
 
-            # input is a list of channel names
-            channels = channels or CHANNELS
-
-            # need a dict of keys id, name for each
-            self.channels_table = [x for x in CHANNELS_JSON
-                                   if x['name'] in channels]
+            # input is a list of channel dicts, with id, name for each
+            self.channels_table = channels or CHANNELS
 
             # df is best to store this
             df = pd.concat([get_raw_shows(channel)

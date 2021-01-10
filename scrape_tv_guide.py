@@ -9,13 +9,12 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 
-from skyscraper_constants import DATA_DIR, CHANNELS_JSON
-
-BASE_URL = "https://www.tvguide.co.uk/mobile/channellisting.asp?ch="
+from skyscraper_constants import DATA_DIR, BASE_URL
 
 DATE_FMT = "%Y %m %d"
 TIME_FMT = "%H:%M"
 DT_FMT = " ".join([DATE_FMT, TIME_FMT])
+
 
 def get_show():
     # just a factory for a series with right index
@@ -147,72 +146,5 @@ def fix_dt_hours(dt, pm, year=2020):
         dt += timedelta(hours=12)
 
     return dt
-
-
-def get_channels_table(channels_json=None, channels_json_fp=None):
-    """
-    Read in the channels saved from the tv guide site
-    """
-
-    channels_json_fp = channels_json_fp or CHANNELS_JSON_FP
-
-    if channels_json is None:
-        with open(channels_json_fp, 'r') as fp:
-            channels_json = json.load(fp)
-
-    return channels_json
-
-
-
-# hereafter is for actually scraping the channels list
-
-def update_tv_guide_channels(channels_data_dir=None):
-    """
-    Run a scan for channels and update the list
-
-    Not written or implemented, but this is what you'd do
-    """
-
-
-def scan_channels(start=0, stop=1500):
-    """
-    Return a list of tuples of channel id and name.
-    This range was previously enough
-    """
-
-    channels = []
-
-    for ch_id in range(start, stop):
-        print(f'trying channel {ch_id:>4}..', end=' ')
-
-        req = requests.get(BASE_URL + str(ch_id))
-        if req.ok:
-            print('ok', end= ' ')
-            soup = BeautifulSoup(req.text, "html.parser")
-            title = soup.title.text.strip()
-
-            # if no channel, still get a return, like this
-            if not title.startswith('TV Listings'):
-                channels.append((ch_id, title))
-
-            print(title)
-
-        else:
-            print('not found')
-            channels.append((ch_id, None))
-        
-    return channels
-
-
-def make_dict_from_raw_channels(raw_channels):
-    """
-    Take output from scan_channels, dump non channels and make a nice dict
-    that can be saved to json
-    """
-
-    channels = [(c[0], c[1].split(" TV Listings")[0]) for c in raw_channels
-                if c[1]]
-
-    return [{'id': y[0], 'name': y[1]} for y in channels]
 
 
