@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from mylogger import get_timelog
+# from mylogger import get_timelog
 
 # just use the dir the code is in
 BASE_PATH = Path('.').absolute()
