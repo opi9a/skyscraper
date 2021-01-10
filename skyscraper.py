@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('filter_strings', nargs='+', type=str,
+    parser.add_argument('include_strings', nargs='+', type=str,
                         help='provide string to filter title and subtitle by')
 
     parser.add_argument('-x', '--exclude-strings', nargs='+', type=str,
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--group-by-channel', action='store_true',
                         help='group listings by channel rather than day')
 
-    parser.add_argument('-d', '--days-to-show', default=None, type=int,
+    parser.add_argument('-d', '--days-to-show', default=1, type=int,
                         help='group listings by channel rather than day')
 
     parser.add_argument('-l', '--lines-per-show', default=1, type=int,
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     schedule = Schedule(update_todays=args.force_update,
                         drop_duplicates=not(args.keep_duplicates),
-                        filter_strings=args.filter_strings,
+                        include_strings=args.include_strings,
                         exclude_strings=args.exclude_strings,
                         no_days=args.days_to_show)
 

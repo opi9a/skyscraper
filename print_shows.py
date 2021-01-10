@@ -1,9 +1,10 @@
 
+import time
 from datetime import datetime
 from collections import OrderedDict
 from os import get_terminal_size
 from termcolor import cprint, colored
-from skyscraper_constants import LOG
+# from skyscraper_constants import LOG
 
 FIELDS_TO_PRINT = ['channel', 'day', 'title', 'subtitle', 'start_time_str', 'end_time_str']
 
@@ -19,18 +20,29 @@ BASE_COL_WIDTHS = {
 
 SUB_MAIN_RATIO = 3 # ratio of width of subtitle and title columns
 MAX_SHOW_ROWS = 5
+MAX_SCREEN_WIDTH = 110
+SCREEN_LINES = 135
 
 LONG_DAY_FMT = "%A %d %B"
 SHORT_DAY_FMT = "%a %d"
 
+SCROLL_SLEEP_TIME = 0.003
+
 
 def print_df(df, col_widths=None, group_by='long_day',
-             screen_width=None, max_show_rows=None):
+             screen_width=None, max_show_rows=None,
+             screen_lines=None):
     """
     Print the df, splitting by channel or day
     """
-    screen_width = screen_width or get_terminal_size()[0] - 2
+    screen_width = min(
+        MAX_SCREEN_WIDTH,
+        screen_width or get_terminal_size()[0] - 4
+    )
+
     max_show_rows = max_show_rows or MAX_SHOW_ROWS
+
+    screen_lines = screen_lines or get_terminal_size()[1] - 4
 
     if col_widths is None:
         max_lens = get_max_lens(df)
@@ -38,26 +50,35 @@ def print_df(df, col_widths=None, group_by='long_day',
 
     headings = df[group_by].unique()
 
+    rows_printed = 0
+
     for heading in headings:
         pad1 = int((screen_width - len(heading)) / 2)
-        pad2 = screen_width - len(heading) - pad1 - 1
+        pad2 = screen_width - len(heading) - pad1 + 1
         print()
         print('-' * pad1, end = ' ')
         cprint(heading, attrs=['bold'], end=' ')
-        print('-' * pad2)
+        print('-' * pad2, end='')
+
+        rows_printed = print_end(rows_printed, screen_lines)
 
         if max_show_rows > 1:
-            print()
+            rows_printed = print_end(rows_printed, screen_lines)
 
         sub_df = df.loc[df[group_by] == heading]
+
         for i in range(len(sub_df)):
-            print_show(sub_df.iloc[i], col_widths,
-                       group_by=group_by,
-                       max_show_rows=max_show_rows)
+            rows_printed = print_show(
+                sub_df.iloc[i], col_widths, group_by=group_by,
+                max_show_rows=max_show_rows, rows_printed=rows_printed,
+                screen_lines=screen_lines
+            )
+
+    rows_printed = print_end(rows_printed, screen_lines)
 
 
-
-def print_show(show, col_widths, group_by='long_day', max_show_rows=None):
+def print_show(show, col_widths, group_by='long_day', max_show_rows=None,
+               rows_printed=None, screen_lines=SCREEN_LINES):
     """
     Given col_widths, print the show.  Group by channel or long_day
     """
@@ -83,9 +104,12 @@ def print_show(show, col_widths, group_by='long_day', max_show_rows=None):
         len(max(by_line.values(), key=lambda x: len(x)))
     )
 
+    # iterate over the lines in each field
     for i in range(max_lines):
         for field, lines in by_line.items():
             pad = col_widths[field]
+            if field == 'title':
+                print(' ', end='')
             if i == 0 and not lines[i]:
                 print('-'.ljust(pad), end='')
             elif i < len(lines):
@@ -94,13 +118,30 @@ def print_show(show, col_widths, group_by='long_day', max_show_rows=None):
                 print("".ljust(pad), end=' ')
 
         if max_show_rows > 1:
-            print()
+            rows_printed = print_end(rows_printed, screen_lines)
+
+    rows_printed = print_end(rows_printed, screen_lines)
+
+    time.sleep(SCROLL_SLEEP_TIME)
+
+    return rows_printed
+
+
+def print_end(rows_printed, screen_lines):
+    """
+    Print an empty line to end a row, then test for pagination
+    """
 
     print()
+    rows_printed += 1
 
+    if rows_printed >= screen_lines:
+        cprint('<press return to continue>', color='green', end="")
+        _ = input('')
+        return 0
 
+    return rows_printed
 
-    # pass
 
 
 def get_max_lens(df):
@@ -163,7 +204,7 @@ def split_line(line, max_width):
 
 
 
-def print_shows(shows, sort_by='channel', log=LOG):
+def print_shows(shows, sort_by='channel'):
     """
     Just print a list of shows on command line.  Choose div by channel or day.
 

@@ -9,10 +9,9 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 
-from skyscraper_constants import DATA_DIR
+from skyscraper_constants import DATA_DIR, CHANNELS_JSON
 
 BASE_URL = "https://www.tvguide.co.uk/mobile/channellisting.asp?ch="
-CHANNELS_JSON_FP = DATA_DIR / 'channels/channels.json'
 
 DATE_FMT = "%Y %m %d"
 TIME_FMT = "%H:%M"

@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import pandas as pd
 
-from skyscraper_constants import DATA_DIR
+from skyscraper_constants import DATA_DIR, CHANNELS_JSON
 from scrape_tv_guide import get_channels_table, get_raw_shows
 from print_shows import print_df
 
@@ -32,6 +32,8 @@ LONG_DAY_FMT = "%A %d %B"
 SHORT_DAY_FMT = "%a %d"
 TIME_FMT = "%H:%M"
 
+MAX_SCREEN_WIDTH = 120
+
 
 class Schedule():
 
@@ -39,7 +41,7 @@ class Schedule():
                  drop_duplicates=True,
                  channels=None, data_dir=None,
                  update_todays=False, save_shows=True,
-                 filter_strings=None, exclude_strings=None, no_days=None,
+                 include_strings=None, exclude_strings=None, no_days=None,
                  df=None):
         """
         Get listings for the channels, save to data_dir
@@ -64,7 +66,7 @@ class Schedule():
             channels = channels or CHANNELS
 
             # need a dict of keys id, name for each
-            self.channels_table = [x for x in get_channels_table()
+            self.channels_table = [x for x in CHANNELS_JSON
                                    if x['name'] in channels]
 
             # df is best to store this
@@ -90,21 +92,21 @@ class Schedule():
         # make the filtered view
         self.df_filtered = df
 
-        self.filter_strings = filter_strings or None
+        self.include_strings = include_strings or None
         self.exclude_strings = exclude_strings or None
         self.no_days = no_days or None
         
-        if filter_strings is not None or no_days is not None:
+        if include_strings is not None or no_days is not None:
             self.apply(drop_duplicates=drop_duplicates)
 
         if print_df:
             self.print_df(reverse=reverse)
 
 
-    def apply(self, df=None, filter_strings=None, exclude_strings=None,
+    def apply(self, df=None, include_strings=None, exclude_strings=None,
               no_days=None, return_df=False, drop_duplicates=True):
         """
-        Apply the current filter_strings  and no_days to the full df
+        Apply the current include_strings  and no_days to the full df
         """
 
         if df is None:
@@ -115,15 +117,15 @@ class Schedule():
                                     keep='first')
 
         no_days = no_days or self.no_days
-        filter_strings = filter_strings or self.filter_strings
+        include_strings = include_strings or self.include_strings
         exclude_strings = exclude_strings or self.exclude_strings
 
         if no_days is not None:
             days = df['c_day'].unique()[:no_days]
             df = df.loc[df['c_day'].isin(days)]
 
-        if filter_strings is not None:
-            df = dfilter(df, filter_strings)
+        if include_strings is not None:
+            df = dfilter(df, include_strings)
 
         if exclude_strings is not None:
             df = dfilter(df, exclude_strings, exclude=True)
@@ -145,7 +147,7 @@ class Schedule():
         """
 
         if not len(self.df_filtered):
-            print('nothing found with filter', self.filter_strings)
+            print('nothing found with filter', self.include_strings)
             return
 
         if reverse:
