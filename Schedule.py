@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 from datetime import datetime
 import pandas as pd
+from termcolor import cprint
 
 from skyscraper_constants import DATA_DIR
 from scrape_tv_guide import get_raw_shows
@@ -146,7 +147,9 @@ class Schedule():
         """
 
         if not len(self.df_filtered):
-            print('nothing found with filter', self.include_strings)
+            print('nothing found with filter:', end=' ')
+            cprint("+ " + ", ".join(self.include_strings), color='green', end=' ')
+            cprint("- " + ", ".join(self.exclude_strings), color='red')
             return
 
         if reverse:
@@ -155,6 +158,13 @@ class Schedule():
         else:
             print_df(self.df_filtered, group_by=group_by,
                      max_show_rows=max_rows)
+
+        print(f' [ {len(self.df_filtered)} / {len(self.df)} shows for terms:', end=" ")
+        if self.include_strings is not None:
+            cprint("+ " + ", ".join(self.include_strings), color='green', end=' ')
+        if self.exclude_strings is not None:
+            cprint("- " + ", ".join(self.exclude_strings), color='red', end=' ')
+        print(']')
 
 
 def dfilter(df, strings, exclude=False):

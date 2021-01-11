@@ -85,10 +85,11 @@ def print_show(show, col_widths, group_by='long_day', max_show_rows=None,
 
     max_show_rows = max_show_rows or MAX_SHOW_ROWS
 
-    to_skip = 'c_channel' if group_by == 'channel' else 'c_day'
+    # TODO if only 1 row just print all chars possible
 
     col_widths = col_widths.copy()
-    del col_widths[to_skip]
+
+    del col_widths['c_channel' if group_by == 'channel' else 'c_day']
 
     # want a dict, keys are fields, vals are lists of strings for each line
     by_line = {}
@@ -141,7 +142,6 @@ def print_end(rows_printed, screen_lines):
         return 0
 
     return rows_printed
-
 
 
 def get_max_lens(df):

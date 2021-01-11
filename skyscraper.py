@@ -6,7 +6,10 @@ from Schedule import Schedule
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        epilog=('show tv listings for set of channels'
+                '\nadd terms to filter')
+    )
 
     parser.add_argument('include_strings', nargs='+', type=str,
                         help='provide string to filter title and subtitle by')
@@ -18,7 +21,8 @@ if __name__ == "__main__":
                         help='print in descending date')
 
     parser.add_argument('-k', '--keep-duplicates', action='store_true',
-                        help='print in descending date')
+                        help='keep show listings that seem to be duplicates on '
+                             'different at the same time')
 
     parser.add_argument('-u', '--force-update', action='store_true',
                         help='force update even if scrape done today')
@@ -34,12 +38,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    schedule = Schedule(update_todays=args.force_update,
-                        drop_duplicates=not(args.keep_duplicates),
-                        include_strings=args.include_strings,
-                        exclude_strings=args.exclude_strings,
-                        no_days=args.days_to_show)
+    # schedule = Schedule(update_todays=args.force_update,
+    #                     drop_duplicates=not(args.keep_duplicates),
+    #                     include_strings=args.include_strings,
+    #                     exclude_strings=args.exclude_strings,
+    #                     no_days=args.days_to_show)
 
-    schedule.print_df(reverse=args.reverse, max_rows=args.lines_per_show)
+    # schedule.print_df(reverse=args.reverse, max_rows=args.lines_per_show)
 
 
