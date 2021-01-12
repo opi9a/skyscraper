@@ -1,4 +1,5 @@
 
+import getch
 import time
 from datetime import datetime
 from collections import OrderedDict
@@ -137,9 +138,17 @@ def print_end(rows_printed, screen_lines):
     rows_printed += 1
 
     if rows_printed >= screen_lines:
-        cprint('<press return to continue>', color='green', end="")
-        _ = input('')
-        return 0
+        cprint('<press q to stop this happening or any other key to continue> ',
+               color='green', end="", flush=True)
+
+        x = getch.getch()
+
+        if x == 'q':
+            print()
+            raise SystemExit
+
+        else:
+            return 0
 
     return rows_printed
 
@@ -245,56 +254,3 @@ def print_shows(shows, sort_by='channel'):
                     print(show[field][:pad].ljust(pad), end=" ")
 
             print("")
-
-
-
-    # if log is not None:
-    #     log.info("new call to print games")
-
-    # term_cols = get_terminal_size()[0]
-
-    # pad2, pad3 = 28, 12
-
-    # pad1 = term_cols - pad2 - (pad3 * 2) - 3
-
-    # for i, day in enumerate(shows):
-    #     if i == days:
-    #         break
-
-    #     print("")
-    #     cprint(" " + shows[day]['day'], attrs=['bold'])
-    #     print("")
-
-    #     # avoid duplicates (may be different channels)
-    #     games_printed = set()
-
-    #     games_to_print = shows[day]['games']
-
-    #     if by_title:
-    #         games_to_print = sorted(games_to_print, key=lambda x: x['title'])
-
-    #     last_title = None
-
-    #     for game in games_to_print:
-
-    #         out_str = "".join([
-    #             game['title'][:pad1].ljust(pad1),
-    #             game['channel'].split()[0][:pad2].rjust(pad2),
-    #             game['type'][:pad3].rjust(pad3),
-    #             game['time'][:pad3].rjust(pad3)
-    #         ])
-
-    #         if last_title is not None and game['title'] != last_title:
-    #             out_str = "\n "+ out_str 
-
-    #         if out_str not in games_printed:
-    #             print(" " + out_str)
-    #             games_printed.add(out_str)
-
-    #         if by_title:
-    #             last_title = game['title']
-
-    # if log is not None:
-    #     log.info("finished printing games")
-
-

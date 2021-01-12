@@ -12,7 +12,7 @@ if __name__ == "__main__":
                 '\nadd terms to filter')
     )
 
-    parser.add_argument('include_strings', nargs='+', type=str,
+    parser.add_argument('include_strings', nargs='*', type=str,
                         help='provide string to filter title and subtitle by')
 
     parser.add_argument('-x', '--exclude-strings', nargs='+', type=str,
@@ -32,7 +32,7 @@ if __name__ == "__main__":
                         help='group listings by channel rather than day')
 
     parser.add_argument('-d', '--days-to-show', default=1, type=int,
-                        help='group listings by channel rather than day')
+                        help='number of days hence to show')
 
     parser.add_argument('-l', '--lines-per-show', default=1, type=int,
                         help='number of lines to use per show')

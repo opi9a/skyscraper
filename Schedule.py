@@ -175,6 +175,12 @@ class Schedule():
             cprint("+ " + ", ".join(self.include_strings), color='green', end=' ')
         if self.exclude_strings is not None:
             cprint("- " + ", ".join(self.exclude_strings), color='red', end=' ')
+
+        if self.no_days == 1:
+            print(f'over 1 day', end=' ')
+        else:
+            print(f'over {self.no_days} days', end=' ')
+
         print(']')
 
 
