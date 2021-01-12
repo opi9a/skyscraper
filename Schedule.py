@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 from termcolor import cprint
 
-from skyscraper_constants import DATA_DIR
+from skyscraper_constants import DATA_DIR, LOG
 from scrape_tv_guide import get_raw_shows
 from print_shows import print_df
 
@@ -46,7 +46,8 @@ class Schedule():
                  channels=None, data_dir=None,
                  update_todays=False, save_shows=True,
                  include_strings=None, exclude_strings=None, no_days=None,
-                 df=None):
+                 remove_shows_over=True,
+                 df=None, log=LOG):
         """
         Get listings for the channels, save to data_dir
         """
@@ -58,13 +59,16 @@ class Schedule():
 
         # load or scrape the raw df of shows (may filter it later)
         if df is not None:
+            LOG.info(f'using passed df')
             self.df = df
 
         elif not update_todays and self.save_fp in list(data_dir.iterdir()):
-
-            self.df = pd.read_csv(self.save_fp, index_col=0).fillna('NA')
+            self.df = pd.read_csv(self.save_fp, index_col=0, 
+                                 parse_dates=['start_dt', 'end_dt'])
+            LOG.info(f'loaded existing df from {self.save_fp}')
 
         else:
+            LOG.info(f'beginning new scrape')
 
             # input is a list of channel dicts, with id, name for each
             self.channels_table = channels or CHANNELS
@@ -83,11 +87,12 @@ class Schedule():
             df['start_time_str'] = df.start_dt.dt.strftime(TIME_FMT)
             df['end_time_str'] = df.end_dt.dt.strftime(TIME_FMT)
 
-            self.df = df.fillna('NA')
+            self.df = df
 
             if save_shows:
                 self.df.to_csv(self.save_fp)
                 print('saved to', self.save_fp)
+
 
         # make the filtered view
         self.df_filtered = df
@@ -95,6 +100,7 @@ class Schedule():
         self.include_strings = include_strings or None
         self.exclude_strings = exclude_strings or None
         self.no_days = no_days or None
+        self.remove_shows_over = remove_shows_over
         
         if include_strings is not None or no_days is not None:
             self.apply(drop_duplicates=drop_duplicates)
@@ -104,7 +110,8 @@ class Schedule():
 
 
     def apply(self, df=None, include_strings=None, exclude_strings=None,
-              no_days=None, return_df=False, drop_duplicates=True):
+              no_days=None, return_df=False, drop_duplicates=True,
+              remove_shows_over=None):
         """
         Apply the current include_strings  and no_days to the full df
         """
@@ -119,6 +126,7 @@ class Schedule():
         no_days = no_days or self.no_days
         include_strings = include_strings or self.include_strings
         exclude_strings = exclude_strings or self.exclude_strings
+        remove_shows_over = remove_shows_over or self.remove_shows_over
 
         if no_days is not None:
             days = df['c_day'].unique()[:no_days]
@@ -129,6 +137,11 @@ class Schedule():
 
         if exclude_strings is not None:
             df = dfilter(df, exclude_strings, exclude=True)
+
+        if remove_shows_over:
+            df = df.loc[~(df.end_dt < datetime.now())]
+
+        df = df.fillna('NA')
 
         if return_df:
             return df

@@ -2,6 +2,7 @@
 
 import argparse
 
+from skyscraper_constants import LOG
 from Schedule import Schedule
 
 if __name__ == "__main__":
@@ -36,14 +37,18 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--lines-per-show', default=1, type=int,
                         help='number of lines to use per show')
 
+    parser.add_argument('-o', '--keep-shows-over', action='store_true',
+                        help='do not discard shows whose end time has passed')
+
     args = parser.parse_args()
 
-    # schedule = Schedule(update_todays=args.force_update,
-    #                     drop_duplicates=not(args.keep_duplicates),
-    #                     include_strings=args.include_strings,
-    #                     exclude_strings=args.exclude_strings,
-    #                     no_days=args.days_to_show)
+    schedule = Schedule(update_todays=args.force_update,
+                        drop_duplicates=not(args.keep_duplicates),
+                        include_strings=args.include_strings,
+                        exclude_strings=args.exclude_strings,
+                        no_days=args.days_to_show,
+                        remove_shows_over=not(args.keep_shows_over))
 
-    # schedule.print_df(reverse=args.reverse, max_rows=args.lines_per_show)
+    schedule.print_df(reverse=args.reverse, max_rows=args.lines_per_show)
 
 
