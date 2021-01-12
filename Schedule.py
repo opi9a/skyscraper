@@ -11,9 +11,7 @@ from scrape_tv_guide import get_raw_shows
 from print_shows import print_df
 
 """
-Scripts to scrape listings from the tv_guide.co.uk site
-
-Also functions to scrape the channel list - may be needed now and then
+Object and scripts to scrape listings from the tv_guide.co.uk site
 """
 
 # this is a subset of full list - see channels/channels.json
@@ -27,11 +25,11 @@ CHANNELS = [
 ]
 
 
-# format for saving to disk
+# formats for saving to disk
 DAILY_PREFIX = "tvg_raw_shows_"
 DATE_FMT = "%Y-%m-%d"
 
-# for printing
+# formats for printing
 LONG_DAY_FMT = "%A %d %B"
 SHORT_DAY_FMT = "%a %d"
 TIME_FMT = "%H:%M"
@@ -47,33 +45,36 @@ class Schedule():
                  update_todays=False, save_shows=True,
                  include_strings=None, exclude_strings=None, no_days=None,
                  remove_shows_over=True,
-                 df=None, log=LOG):
+                 log=LOG):
         """
-        Get listings for the channels, save to data_dir
+        Load or scrape a df of channels
+        Apply filters
+        Print nice
         """
 
-        # first check if there is a scrape saved today already
+        # set up some attributes
         data_dir = data_dir or DATA_DIR
         self.date_str = datetime.now().strftime(DATE_FMT)
         self.save_fp = DATA_DIR / "".join([DAILY_PREFIX, self.date_str, '.csv'])
+        self.include_strings = include_strings or None
+        self.exclude_strings = exclude_strings or None
+        self.no_days = no_days or None
+        self.remove_shows_over = remove_shows_over
+        
 
-        # load or scrape the raw df of shows (may filter it later)
-        if df is not None:
-            LOG.info(f'using passed df')
-            self.df = df
-
-        elif not update_todays and self.save_fp in list(data_dir.iterdir()):
+        # check if there is a scrape saved today already
+        if not update_todays and self.save_fp in list(data_dir.iterdir()):
             self.df = pd.read_csv(self.save_fp, index_col=0, 
                                  parse_dates=['start_dt', 'end_dt'])
             LOG.info(f'loaded existing df from {self.save_fp}')
 
+        # else scrape a df
         else:
             LOG.info(f'beginning new scrape')
 
-            # input is a list of channel dicts, with id, name for each
+            # need a list of channel dicts, with id, name for each
             self.channels_table = channels or CHANNELS
 
-            # df is best to store this
             df = pd.concat([get_raw_shows(channel)
                             for channel in self.channels_table])
 
@@ -93,15 +94,12 @@ class Schedule():
                 self.df.to_csv(self.save_fp)
                 print('saved to', self.save_fp)
 
+            LOG.info(f'finished scrape, found {len(df)} shows')
+
 
         # make the filtered view
-        self.df_filtered = df
+        self.df_filtered = self.df
 
-        self.include_strings = include_strings or None
-        self.exclude_strings = exclude_strings or None
-        self.no_days = no_days or None
-        self.remove_shows_over = remove_shows_over
-        
         if include_strings is not None or no_days is not None:
             self.apply(drop_duplicates=drop_duplicates)
 
