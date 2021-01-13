@@ -148,6 +148,7 @@ def print_end(rows_printed, screen_lines):
             raise SystemExit
 
         else:
+            print()
             return 0
 
     return rows_printed
