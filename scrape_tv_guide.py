@@ -39,9 +39,6 @@ def get_raw_shows(channel, soup=None, verbose=True,
         {'id': 143, 'name': 'Eurosport 1'}
     """
 
-    if verbose:
-        print('Getting listing for', channel['name'], end=".. ")
-
     if soup is None:
         url = BASE_URL + str(channel['id'])
         req = requests.get(url)
@@ -103,7 +100,7 @@ def get_raw_shows(channel, soup=None, verbose=True,
 
 
     if verbose:
-        print('found', len(raw_shows))
+        print(f"Found {len(raw_shows)} shows for {channel['name']}")
 
     return pd.concat(raw_shows, axis=1).T
 

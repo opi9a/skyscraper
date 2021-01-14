@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import pandas as pd
 from termcolor import cprint
+from concurrent.futures import ThreadPoolExecutor
 
 from skyscraper_constants import DATA_DIR, LOG
 from scrape_tv_guide import get_raw_shows
@@ -44,7 +45,7 @@ class Schedule():
                  channels=None, data_dir=None,
                  update_todays=False, save_shows=True,
                  include_strings=None, exclude_strings=None, no_days=None,
-                 remove_shows_over=True,
+                 remove_shows_over=True, get_async=True,
                  log=LOG):
         """
         Load or scrape a df of channels
@@ -75,8 +76,15 @@ class Schedule():
             # need a list of channel dicts, with id, name for each
             self.channels_table = channels or CHANNELS
 
-            df = pd.concat([get_raw_shows(channel)
-                            for channel in self.channels_table])
+            if get_async:
+                with ThreadPoolExecutor() as conn:
+                    shows_generator = conn.map(get_raw_shows,
+                                               self.channels_table)
+            else:
+                shows_generator = [get_raw_shows(channel)
+                                   for channel in self.channels_table]
+
+            df = pd.concat(shows_generator)
 
             df.index=pd.RangeIndex(0, len(df.index))
 

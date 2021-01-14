@@ -40,6 +40,9 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--keep-shows-over', action='store_true',
                         help='do not discard shows whose end time has passed')
 
+    parser.add_argument('-s', '--get-synchronously', action='store_true',
+                        help='do not fetch show data asynchronously')
+
     args = parser.parse_args()
 
     schedule = Schedule(update_todays=args.force_update,
@@ -47,6 +50,7 @@ if __name__ == "__main__":
                         include_strings=args.include_strings,
                         exclude_strings=args.exclude_strings,
                         no_days=args.days_to_show,
+                        get_async=not(args.get_synchronously),
                         remove_shows_over=not(args.keep_shows_over))
 
     schedule.print_df(reverse=args.reverse, max_rows=args.lines_per_show)
