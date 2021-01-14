@@ -16,14 +16,14 @@ if __name__ == "__main__":
                         help='provide string to filter title and subtitle by')
 
     parser.add_argument('-x', '--exclude-strings', nargs='+', type=str,
-                        help='tags to filter out')
+                        help='tags to filter shows out')
 
     parser.add_argument('-r', '--reverse', action='store_true',
                         help='print in descending date')
 
     parser.add_argument('-k', '--keep-duplicates', action='store_true',
                         help='keep show listings that seem to be duplicates on '
-                             'different at the same time')
+                             'different channels at the same time')
 
     parser.add_argument('-u', '--force-update', action='store_true',
                         help='force update even if scrape done today')
@@ -34,10 +34,16 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--days-to-show', default=1, type=int,
                         help='number of days hence to show')
 
+    parser.add_argument('-w', '--whole-week', action='store_true',
+                        help='display shows for whole week - overrides "-d"')
+
     parser.add_argument('-l', '--lines-per-show', default=1, type=int,
                         help='number of lines to use per show')
 
-    parser.add_argument('-o', '--keep-shows-over', action='store_true',
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='print up to 10 lines per show - overrides "-l"')
+
+    parser.add_argument('-o', '--keep-finished-shows', action='store_true',
                         help='do not discard shows whose end time has passed')
 
     parser.add_argument('-s', '--get-synchronously', action='store_true',
@@ -45,14 +51,24 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.whole_week:
+        no_days = 7
+    else:
+        no_days = args.days_to_show
+
+    if args.verbose:
+        max_show_rows = 10
+    else:
+        max_show_rows = args.lines_per_show
+
+
     schedule = Schedule(update_todays=args.force_update,
                         drop_duplicates=not(args.keep_duplicates),
                         include_strings=args.include_strings,
                         exclude_strings=args.exclude_strings,
-                        no_days=args.days_to_show,
-                        get_async=not(args.get_synchronously),
-                        remove_shows_over=not(args.keep_shows_over))
+                        no_days=no_days, get_async=not(args.get_synchronously),
+                        remove_shows_over=not(args.keep_finished_shows))
 
-    schedule.print_df(reverse=args.reverse, max_rows=args.lines_per_show)
+    schedule.print_df(reverse=args.reverse, max_rows=max_show_rows)
 
 
