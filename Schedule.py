@@ -41,7 +41,7 @@ MAX_SCREEN_WIDTH = 120
 class Schedule():
 
     def __init__(self, print_df=False, reverse=True,
-                 drop_duplicates=True,
+                 drop_duplicates=True, by_channel=False,
                  channels=None, data_dir=None,
                  update_todays=False, save_shows=True,
                  include_strings=None, exclude_strings=None, no_days=None,
@@ -59,6 +59,7 @@ class Schedule():
         self.save_fp = DATA_DIR / "".join([DAILY_PREFIX, self.date_str, '.csv'])
         self.include_strings = include_strings or None
         self.exclude_strings = exclude_strings or None
+        self.by_channel = by_channel
         self.no_days = no_days or None
         self.remove_shows_over = remove_shows_over
         
@@ -112,12 +113,12 @@ class Schedule():
             self.apply(drop_duplicates=drop_duplicates)
 
         if print_df:
-            self.print_df(reverse=reverse)
+            self.print_df(reverse=reverse, by_channel=self.by_channel)
 
 
     def apply(self, df=None, include_strings=None, exclude_strings=None,
               no_days=None, return_df=False, drop_duplicates=True,
-              remove_shows_over=None):
+              remove_shows_over=None, by_channel=False):
         """
         Apply the current include_strings  and no_days to the full df
         """
@@ -133,6 +134,7 @@ class Schedule():
         include_strings = include_strings or self.include_strings
         exclude_strings = exclude_strings or self.exclude_strings
         remove_shows_over = remove_shows_over or self.remove_shows_over
+        by_channel = by_channel or self.by_channel
 
         if no_days is not None:
             days = df['c_day'].unique()[:no_days]
@@ -149,6 +151,9 @@ class Schedule():
 
         df = df.fillna('NA')
 
+        if by_channel:
+            df = df.sort_values(['channel', 'start_dt'])
+
         if return_df:
             return df
         else:
@@ -159,11 +164,16 @@ class Schedule():
 
 
 
-    def print_df(self, reverse=False, group_by='long_day',
+    def print_df(self, reverse=False, by_channel=False,
                  max_rows=None):
         """
         print the filtered df
         """
+
+        if by_channel:
+            group_by = 'long_day'
+        else:
+            group_by = 'channel'
 
         if not len(self.df_filtered):
             print('nothing found with filter:', end=' ')

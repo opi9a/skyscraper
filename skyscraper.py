@@ -32,13 +32,13 @@ if __name__ == "__main__":
                         help='group listings by channel rather than day')
 
     parser.add_argument('-d', '--days-to-show', default=1, type=int,
-                        help='number of days hence to show')
+                        help='number of days hence to show [default=1]')
 
     parser.add_argument('-w', '--whole-week', action='store_true',
                         help='display shows for whole week - overrides "-d"')
 
     parser.add_argument('-l', '--lines-per-show', default=1, type=int,
-                        help='number of lines to use per show')
+                        help='number of lines to use per show [default=1]')
 
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='print up to 10 lines per show - overrides "-l"')
@@ -66,6 +66,7 @@ if __name__ == "__main__":
                         drop_duplicates=not(args.keep_duplicates),
                         include_strings=args.include_strings,
                         exclude_strings=args.exclude_strings,
+                        by_channel=args.group_by_channel,
                         no_days=no_days, get_async=not(args.get_synchronously),
                         remove_shows_over=not(args.keep_finished_shows))
 
