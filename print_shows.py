@@ -1,5 +1,5 @@
 
-import getch
+import readchar
 import time
 from datetime import datetime
 from collections import OrderedDict
@@ -141,7 +141,7 @@ def print_end(rows_printed, screen_lines):
         cprint('<press q to stop this happening or any other key to continue> ',
                color='green', end="", flush=True)
 
-        x = getch.getch()
+        x = readchar.readchar()
 
         if x == 'q':
             print()
