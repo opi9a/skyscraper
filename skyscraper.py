@@ -61,7 +61,6 @@ if __name__ == "__main__":
     else:
         max_show_rows = args.lines_per_show
 
-
     schedule = Schedule(update_todays=args.force_update,
                         drop_duplicates=not(args.keep_duplicates),
                         include_strings=args.include_strings,

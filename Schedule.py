@@ -171,9 +171,9 @@ class Schedule():
         """
 
         if by_channel:
-            group_by = 'long_day'
-        else:
             group_by = 'channel'
+        else:
+            group_by = 'long_day'
 
         if not len(self.df_filtered):
             print('nothing found with filter:', end=' ')
@@ -184,6 +184,7 @@ class Schedule():
         if reverse:
             print_df(self.df_filtered.sort_index(ascending=False),
                      group_by=group_by, max_show_rows=max_rows)
+
         else:
             print_df(self.df_filtered, group_by=group_by,
                      max_show_rows=max_rows)
