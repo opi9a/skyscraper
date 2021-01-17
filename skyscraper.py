@@ -49,6 +49,9 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--get-synchronously', action='store_true',
                         help='do not fetch show data asynchronously')
 
+    parser.add_argument('-m', '--mute', action='store_true',
+                        help='do not print any output (eg if just updating)')
+
     args = parser.parse_args()
 
     if args.whole_week:
@@ -69,6 +72,7 @@ if __name__ == "__main__":
                         no_days=no_days, get_async=not(args.get_synchronously),
                         remove_shows_over=not(args.keep_finished_shows))
 
-    schedule.print_df(reverse=args.reverse, max_rows=max_show_rows)
+    if not args.mute:
+        schedule.print_df(reverse=args.reverse, max_rows=max_show_rows)
 
 

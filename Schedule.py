@@ -164,11 +164,14 @@ class Schedule():
 
 
 
-    def print_df(self, reverse=False, by_channel=False,
+    def print_df(self, reverse=False, by_channel=None,
                  max_rows=None):
         """
         print the filtered df
         """
+
+        if by_channel is None:
+            by_channel = self.by_channel
 
         if by_channel:
             group_by = 'channel'
