@@ -180,8 +180,7 @@ class Schedule():
 
         if not len(self.df_filtered):
             print('nothing found with filter:', end=' ')
-            cprint("+ " + ", ".join(self.include_strings), color='green', end=' ')
-            cprint("- " + ", ".join(self.exclude_strings), color='red')
+            cprint_filters(self.include_strings, self.exclude_strings)
             return
 
         if reverse:
@@ -193,10 +192,8 @@ class Schedule():
                      max_show_rows=max_rows)
 
         print(f' [ {len(self.df_filtered)} / {len(self.df)} shows for terms:', end=" ")
-        if self.include_strings is not None:
-            cprint("+ " + ", ".join(self.include_strings), color='green', end=' ')
-        if self.exclude_strings is not None:
-            cprint("- " + ", ".join(self.exclude_strings), color='red', end=' ')
+
+        cprint_filters(self.include_strings, self.exclude_strings)
 
         if self.no_days == 1:
             print(f'over 1 day', end=' ')
@@ -204,6 +201,19 @@ class Schedule():
             print(f'over {self.no_days} days', end=' ')
 
         print(']')
+
+
+def cprint_filters(include_strings=None, exclude_strings=None):
+    """
+    Just print the strings, dealing with empty ones
+    """
+
+    if include_strings is not None:
+        cprint("+ " + ", ".join(include_strings), color='green', end=' ')
+
+    if exclude_strings is not None:
+        cprint("+ " + ", ".join(exclude_strings), color='red', end=' ')
+
 
 
 def dfilter(df, strings, exclude=False):
