@@ -179,20 +179,18 @@ class Schedule():
             group_by = 'long_day'
 
         if not len(self.df_filtered):
-            print('nothing found with filter:', end=' ')
-            cprint_filters(self.include_strings, self.exclude_strings)
-            return
-
-        if reverse:
-            print_df(self.df_filtered.sort_index(ascending=False),
-                     group_by=group_by, max_show_rows=max_rows)
+            print('\n ---- No results ---- \n')
 
         else:
-            print_df(self.df_filtered, group_by=group_by,
-                     max_show_rows=max_rows)
+            if reverse:
+                print_df(self.df_filtered.sort_index(ascending=False),
+                         group_by=group_by, max_show_rows=max_rows)
+
+            else:
+                print_df(self.df_filtered, group_by=group_by,
+                         max_show_rows=max_rows)
 
         print(f' [ {len(self.df_filtered)} / {len(self.df)} shows for terms:', end=" ")
-
         cprint_filters(self.include_strings, self.exclude_strings)
 
         if self.no_days == 1:
