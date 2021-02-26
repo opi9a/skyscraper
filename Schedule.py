@@ -41,7 +41,7 @@ MAX_SCREEN_WIDTH = 120
 class Schedule():
 
     def __init__(self, print_df=False, reverse=True,
-                 drop_duplicates=True, by_channel=False,
+                 drop_duplicates=True, group_by='long_day',
                  channels=None, data_dir=None,
                  update_todays=False, save_shows=True,
                  include_strings=None, exclude_strings=None, no_days=None,
@@ -59,7 +59,7 @@ class Schedule():
         self.save_fp = DATA_DIR / "".join([DAILY_PREFIX, self.date_str, '.csv'])
         self.include_strings = include_strings or None
         self.exclude_strings = exclude_strings or None
-        self.by_channel = by_channel
+        self.group_by = group_by
         self.no_days = no_days or None
         self.remove_shows_over = remove_shows_over
         
@@ -113,12 +113,12 @@ class Schedule():
             self.apply(drop_duplicates=drop_duplicates)
 
         if print_df:
-            self.print_df(reverse=reverse, by_channel=self.by_channel)
+            self.print_df(reverse=reverse, group_by=self.group_by)
 
 
     def apply(self, df=None, include_strings=None, exclude_strings=None,
               no_days=None, return_df=False, drop_duplicates=True,
-              remove_shows_over=None, by_channel=False):
+              remove_shows_over=None, group_by=False):
         """
         Apply the current include_strings  and no_days to the full df
         """
@@ -134,7 +134,7 @@ class Schedule():
         include_strings = include_strings or self.include_strings
         exclude_strings = exclude_strings or self.exclude_strings
         remove_shows_over = remove_shows_over or self.remove_shows_over
-        by_channel = by_channel or self.by_channel
+        group_by = group_by or self.group_by
 
         if no_days is not None:
             days = df['c_day'].unique()[:no_days]
@@ -151,7 +151,7 @@ class Schedule():
 
         df = df.fillna('NA')
 
-        if by_channel:
+        if group_by:
             df = df.sort_values(['channel', 'start_dt'])
 
         if return_df:
@@ -164,16 +164,16 @@ class Schedule():
 
 
 
-    def print_df(self, reverse=False, by_channel=None,
+    def print_df(self, reverse=False, group_by=None,
                  max_rows=None):
         """
         print the filtered df
         """
 
-        if by_channel is None:
-            by_channel = self.by_channel
+        if group_by is None:
+            group_by = self.group_by
 
-        if by_channel:
+        if group_by:
             group_by = 'channel'
         else:
             group_by = 'long_day'

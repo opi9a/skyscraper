@@ -7,7 +7,29 @@ from os import get_terminal_size
 from termcolor import cprint, colored
 # from skyscraper_constants import LOG
 
-FIELDS_TO_PRINT = ['channel', 'day', 'title', 'subtitle', 'start_time_str', 'end_time_str']
+FIELDS_TO_PRINT = ['channel', 'long_day', 'title', 'subtitle',
+                   'start_time_str', 'end_time_str']
+"""
+group_by:
+    channel:
+        segment by channel
+
+
+"""
+SCHEMAS = { 
+    'channel': {
+        'segment_heading': 'channel',
+        'sort_by': 'start_dt',
+        'fields': ['title', 'subtitle', 'c_day', 'start_time_str', 'end_time_str']
+    },
+
+    'day': {
+        'segment_heading': 'long_day',
+        'sort_by': 'start_dt',
+        'fields': ['title', 'subtitle', 'c_channel', 'start_time_str', 'end_time_str']
+    },
+}
+
 
 BASE_COL_WIDTHS = {
     # only the fixed ones, others looked up
@@ -30,11 +52,12 @@ SHORT_DAY_FMT = "%a %d"
 SCROLL_SLEEP_TIME = 0.003
 
 
+
 def print_df(df, col_widths=None, group_by='long_day',
              screen_width=None, max_show_rows=None,
              screen_lines=None):
     """
-    Print the df, splitting by channel or day
+    Print the df, splitting into groups of rows by channel or day
     """
     screen_width = min(
         MAX_SCREEN_WIDTH,
@@ -214,44 +237,3 @@ def split_line(line, max_width):
 
 
 
-def print_shows(shows, sort_by='channel'):
-    """
-    Just print a list of shows on command line.  Choose div by channel or day.
-
-    Cols:
-        Channel OR day / title / subtitle / time / dur?
-
-    If by channel / day, print a line for channel / day before each group
-    """
-    
-    shows.sort(key = lambda x:x[sort_by])
-
-    div_name = None
-    pad = 8
-
-    for show in shows:
-        if show[sort_by] != div_name:
-            if sort_by == 'day':
-                cprint("\n" + show[sort_by].strftime("%A %d %b"), attrs=['bold'])
-            else:
-                cprint("\n" + show[sort_by], attrs=['bold'])
-
-            div_name = show[sort_by]
-
-        else:
-            for field in FIELDS_TO_PRINT:
-                if field == sort_by:
-                    continue
-                elif field == 'day':
-                    print(show['start_time_str'].strftime("%a"), end=" ")
-
-                elif field.endswith('dt'):
-                    try:
-                        print(show[field].strftime("%H:%M").ljust(pad), end=" ")
-                    except:
-                        print('N/A'.ljust(pad), end=" ")
-
-                else:
-                    print(show[field][:pad].ljust(pad), end=" ")
-
-            print("")
