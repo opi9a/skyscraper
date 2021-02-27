@@ -28,13 +28,16 @@ SCHEMAS = {
         'sort_by': 'start_dt',
         'fields': ['title', 'subtitle', 'c_channel', 'start_time_str', 'end_time_str']
     },
+
+    'show': {
+        'segment_heading': 'title',
+        'sort_by': 'start_dt',
+        'fields': ['subtitle', 'c_channel', 'c_day', 'start_time_str', 'end_time_str']
+    },
 }
 
 
-BASE_COL_WIDTHS = {
-    # only the fixed ones, others looked up
-    'title': None,
-    'subtitle': None,
+INVARIANT_COL_WIDTHS = {
     'c_day': 8, # Wed 28th
     'c_channel': 8, # Sky Main
     'start_time_str': 5, # 16:30
@@ -53,11 +56,11 @@ SCROLL_SLEEP_TIME = 0.003
 
 
 
-def print_df(df, col_widths=None, group_by='long_day',
+def print_df(df, col_widths=None, group_by='day',
              screen_width=None, max_show_rows=None,
              screen_lines=None):
     """
-    Print the df, splitting into groups of rows by channel or day
+    Print the df, splitting into groups of rows according to group_by
     """
     screen_width = min(
         MAX_SCREEN_WIDTH,
@@ -68,11 +71,16 @@ def print_df(df, col_widths=None, group_by='long_day',
 
     screen_lines = screen_lines or get_terminal_size()[1] - 4
 
+    cols_to_print = SCHEMAS[group_by]['fields']
+    segment_heading = SCHEMAS[group_by]['segment_heading']
+
+    # dev need this to reflect schema
     if col_widths is None:
         max_lens = get_max_lens(df)
-        col_widths = get_col_widths(max_lens, screen_width)
+        # needs to depend on schema (fields)
+        col_widths = get_col_widths(max_lens, cols_to_print, screen_width)
 
-    headings = df[group_by].unique()
+    headings = df[segment_heading].unique()
 
     rows_printed = 0
 
@@ -89,11 +97,11 @@ def print_df(df, col_widths=None, group_by='long_day',
         if max_show_rows > 1:
             rows_printed = print_end(rows_printed, screen_lines)
 
-        sub_df = df.loc[df[group_by] == heading]
+        sub_df = df.loc[df[segment_heading] == heading]
 
         for i in range(len(sub_df)):
             rows_printed = print_show(
-                sub_df.iloc[i], col_widths, group_by=group_by,
+                sub_df.iloc[i], col_widths, 
                 max_show_rows=max_show_rows, rows_printed=rows_printed,
                 screen_lines=screen_lines
             )
@@ -101,7 +109,7 @@ def print_df(df, col_widths=None, group_by='long_day',
     rows_printed = print_end(rows_printed, screen_lines)
 
 
-def print_show(show, col_widths, group_by='long_day', max_show_rows=None,
+def print_show(show, col_widths, max_show_rows=None,
                rows_printed=None, screen_lines=SCREEN_LINES):
     """
     Given col_widths, print the show.  Group by channel or long_day
@@ -110,10 +118,10 @@ def print_show(show, col_widths, group_by='long_day', max_show_rows=None,
     max_show_rows = max_show_rows or MAX_SHOW_ROWS
 
     # TODO if only 1 row just print all chars possible
+    # TODO if repeated subtitles in group_by show, collapse
+    # and just show 1 row per showing
 
     col_widths = col_widths.copy()
-
-    del col_widths['c_channel' if group_by == 'channel' else 'c_day']
 
     # want a dict, keys are fields, vals are lists of strings for each line
     by_line = {}
@@ -183,7 +191,7 @@ def get_max_lens(df):
     """
 
     # set up empty dict for the variable fields
-    out = BASE_COL_WIDTHS.copy()
+    out = INVARIANT_COL_WIDTHS.copy()
 
     for field in ['title',  'subtitle', 'c_channel', 'c_day']:
         out[field] = max(df[field].apply(len)) 
@@ -191,26 +199,39 @@ def get_max_lens(df):
     return out
 
 
-def get_col_widths(max_lens, term_size, sub_main_ratio=None):
+def get_col_widths(max_lens, cols_to_print, term_size,
+                       sub_main_ratio=None):
     """
+    Take dict of max lens, and the cols to be printed
     Return the col_widths to use
     Only title and subtitle to vary
-    (max_lens dict will have c_day and c_channel, both not needed, but same size)
     """
     sub_main_ratio = sub_main_ratio or SUB_MAIN_RATIO
 
-    # work out cols taken by invariants
-    # ignore c_channel, as one of it or c_day (same size) will be excluded
-    pad = 1
-    const_widths_sum = sum(v + pad for k, v in BASE_COL_WIDTHS.items()
-                           if k in ['c_day', 'start_time_str', 'end_time_str'])
+    # get skeleton output, with invariants
 
+    out = {
+        field: INVARIANT_COL_WIDTHS.get(field, None)
+        for field in cols_to_print
+    }
+
+    # work out cols taken by invariants
+    pad = 1
+
+    const_widths_sum = sum(width + pad for width in out.values()
+                           if width is not None)
+
+    # now split remainder between title and subtitle
     cols_avail = term_size - const_widths_sum
 
-    out = BASE_COL_WIDTHS.copy()
-    out['title'] = min(int(cols_avail / sub_main_ratio), max_lens['title'])
-    out['subtitle'] = min(cols_avail - out['title'], max_lens['subtitle'])
+    # subtitle always printed. If title reqd, split, otherwise all to subtitle
+    if 'title' in cols_to_print:
+        out['title'] = min(int(cols_avail / sub_main_ratio), max_lens['title'])
+        out['subtitle'] = min(cols_avail - out['title'], max_lens['subtitle'])
 
+    else:
+        out['subtitle'] = cols_avail
+    
     return out
 
 

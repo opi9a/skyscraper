@@ -31,6 +31,9 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--group-by-channel', action='store_true',
                         help='group listings by channel rather than day')
 
+    parser.add_argument('-e', '--group-by-show', action='store_true',
+                        help='group listings by show rather than day')
+
     parser.add_argument('-d', '--days-to-show', default=1, type=int,
                         help='number of days hence to show [default=1]')
 
@@ -64,11 +67,18 @@ if __name__ == "__main__":
     else:
         max_show_rows = args.lines_per_show
 
+    if args.group_by_channel:
+        group_by = 'channel'
+    elif args.group_by_show:
+        group_by = 'show'
+    else:
+        group_by = 'day'
+
     schedule = Schedule(update_todays=args.force_update,
                         drop_duplicates=not(args.keep_duplicates),
                         include_strings=args.include_strings,
                         exclude_strings=args.exclude_strings,
-                        by_channel=args.group_by_channel,
+                        group_by=group_by,
                         no_days=no_days, get_async=not(args.get_synchronously),
                         remove_shows_over=not(args.keep_finished_shows))
 

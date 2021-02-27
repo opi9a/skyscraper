@@ -173,10 +173,6 @@ class Schedule():
         if group_by is None:
             group_by = self.group_by
 
-        if group_by:
-            group_by = 'channel'
-        else:
-            group_by = 'long_day'
 
         if not len(self.df_filtered):
             print('\n ---- No results ---- \n')
