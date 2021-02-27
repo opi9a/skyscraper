@@ -1,4 +1,5 @@
 
+import pandas as pd
 import readchar
 import time
 from datetime import datetime
@@ -32,16 +33,22 @@ SCHEMAS = {
     'show': {
         'segment_heading': 'title',
         'sort_by': 'start_dt',
-        'fields': ['subtitle', 'c_channel', 'c_day', 'start_time_str', 'end_time_str']
+        'fields': ['subtitle', 'agg_channels', 'agg_days',
+                   'agg_start_str', 'agg_end_str']
     },
 }
 
+LINKER = '<BR>'
 
 INVARIANT_COL_WIDTHS = {
     'c_day': 8, # Wed 28th
     'c_channel': 8, # Sky Main
     'start_time_str': 5, # 16:30
     'end_time_str': 5, # 17:30
+    'agg_days': 8, # Wed 28th
+    'agg_channels': 8, # Sky Main
+    'agg_start_str': 5, # 16:30
+    'agg_end_str': 5, # 17:30
 }
 
 SUB_MAIN_RATIO = 3 # ratio of width of subtitle and title columns
@@ -54,6 +61,44 @@ SHORT_DAY_FMT = "%a %d"
 
 SCROLL_SLEEP_TIME = 0.003
 
+
+def make_df_by_show(df):
+    """
+    Compress df such that each show (based on title and subtitle combination)
+    has a single line - with multiple showings represented as extended strings
+    in fields 'agg_channels', 'agg_days', 'agg_start_str', 'agg_end_str'
+    """
+
+    df = df.copy().sort_values(['title', 'subtitle', 'start_dt'])
+
+    # get the unique_shows, identified by title, subtitle tuple
+    unique_shows = tuple(df.set_index(['title', 'subtitle']).index.unique())
+
+
+    # use the global linker to join listings eg for channel
+    # - will split by this later when turning into multiple rows for printing
+    linker = LINKER
+
+    # iterate over the unique_shows, adding to a list of series with processed
+    # shows
+    shows_list = []
+    for show in unique_shows:
+        sub_df = df.loc[(df.title == show[0])
+                        & (df.subtitle == show[1])]
+
+        show_dict = {
+            'title': show[0],
+            'subtitle': show[1],
+            'duration': sub_df.duration.unique()[0],
+            'agg_channels': linker.join(sub_df.c_channel.values),
+            'agg_days': linker.join(sub_df.c_day.values),
+            'agg_start_str': linker.join(sub_df.start_time_str.values),
+            'agg_end_str': linker.join(sub_df.end_time_str.values),
+        }
+
+        shows_list.append(pd.Series(show_dict))
+
+    return pd.concat(shows_list, axis=1).T
 
 
 def print_df(df, col_widths=None, group_by='day',
@@ -118,8 +163,6 @@ def print_show(show, col_widths, max_show_rows=None,
     max_show_rows = max_show_rows or MAX_SHOW_ROWS
 
     # TODO if only 1 row just print all chars possible
-    # TODO if repeated subtitles in group_by show, collapse
-    # and just show 1 row per showing
 
     col_widths = col_widths.copy()
 
@@ -132,10 +175,23 @@ def print_show(show, col_widths, max_show_rows=None,
         else:
             by_line[field] = [show[field]]
 
-    max_lines = min(
-        max_show_rows,
-        len(max(by_line.values(), key=lambda x: len(x)))
-    )
+    # split any elements with LINKER
+    is_agg_show = False
+    for field, value in by_line.items():
+        if LINKER in value[0]:
+            by_line[field] = value[0].split(LINKER)
+            is_agg_show = True
+
+    # if the invariant fields are aggregates split over multiple lines, use
+    # these to set the max lines
+    if is_agg_show:
+        max_lines = len(by_line['agg_days'])
+
+    else:
+        max_lines = min(
+            max_show_rows,
+            len(max(by_line.values(), key=lambda x: len(x)))
+        )
 
     # iterate over the lines in each field
     for i in range(max_lines):
@@ -193,8 +249,11 @@ def get_max_lens(df):
     # set up empty dict for the variable fields
     out = INVARIANT_COL_WIDTHS.copy()
 
-    for field in ['title',  'subtitle', 'c_channel', 'c_day']:
-        out[field] = max(df[field].apply(len)) 
+    for field in df.columns:
+        try:
+            out[field] = max(df[field].apply(len)) 
+        except:
+            pass
 
     return out
 

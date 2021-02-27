@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from skyscraper_constants import DATA_DIR, LOG
 from scrape_tv_guide import get_raw_shows
-from print_shows import print_df
+from print_shows import print_df, make_df_by_show
 
 """
 Object and scripts to scrape listings from the tv_guide.co.uk site
@@ -107,7 +107,7 @@ class Schedule():
 
 
         # make the filtered view
-        self.df_filtered = self.df
+        self.df_filtered = self.df.fillna('NA')
 
         if include_strings is not None or no_days is not None:
             self.apply(drop_duplicates=drop_duplicates)
@@ -120,7 +120,7 @@ class Schedule():
               no_days=None, return_df=False, drop_duplicates=True,
               remove_shows_over=None, group_by=False):
         """
-        Apply the current include_strings  and no_days to the full df
+        Apply the current include_strings and no_days to the full df
         """
 
         if df is None:
@@ -173,12 +173,16 @@ class Schedule():
         if group_by is None:
             group_by = self.group_by
 
-
         if not len(self.df_filtered):
             print('\n ---- No results ---- \n')
 
         else:
-            if reverse:
+
+            if group_by == 'show':
+                to_print = make_df_by_show(self.df_filtered)
+                print_df(to_print, group_by='show')
+
+            elif reverse:
                 print_df(self.df_filtered.sort_index(ascending=False),
                          group_by=group_by, max_show_rows=max_rows)
 
