@@ -114,7 +114,7 @@ def print_df(df, col_widths=None, group_by='day',
 
     max_show_rows = max_show_rows or MAX_SHOW_ROWS
 
-    screen_lines = screen_lines or get_terminal_size()[1] - 4
+    screen_lines = screen_lines or get_terminal_size()[1] - 6
 
     cols_to_print = SCHEMAS[group_by]['fields']
     segment_heading = SCHEMAS[group_by]['segment_heading']
