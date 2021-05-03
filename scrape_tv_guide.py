@@ -102,7 +102,8 @@ def get_raw_shows(channel, soup=None, verbose=True,
     if verbose:
         print(f"Found {len(raw_shows)} shows for {channel['name']}")
 
-    return pd.concat(raw_shows, axis=1).T
+    if raw_shows:
+        return pd.concat(raw_shows, axis=1).T
 
 
 def tidy_raw_show(raw_show):
