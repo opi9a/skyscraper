@@ -9,7 +9,9 @@ Takes quite a while.  Not expected to be needed much.
 
 import requests
 from bs4 import BeautifulSoup
-from constants import BASE_URL
+from .constants import BASE_URL, DATA_DIR
+
+CHANNELS_DATA_DIR = DATA_DIR / 'channels'
 
 
 
