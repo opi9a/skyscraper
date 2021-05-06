@@ -55,8 +55,9 @@ class Schedule():
 
         # set up some attributes
         data_dir = data_dir or DATA_DIR
+        raw_shows_dir = data_dir / 'raw_shows'
         self.date_str = datetime.now().strftime(DATE_FMT)
-        self.save_fp = DATA_DIR / 'raw_shows' / "".join(
+        self.save_fp =  raw_shows_dir / "".join(
             [DAILY_PREFIX, self.date_str, '.csv'])
         self.include_strings = include_strings or None
         self.exclude_strings = exclude_strings or None
@@ -66,7 +67,7 @@ class Schedule():
         
 
         # check if there is a scrape saved today already
-        if not update_todays and self.save_fp in list(data_dir.iterdir()):
+        if not update_todays and self.save_fp in list(raw_shows_dir.iterdir()):
             self.df = pd.read_csv(self.save_fp, index_col=0, 
                                  parse_dates=['start_dt', 'end_dt'])
             LOG.info(f'loaded existing df from {self.save_fp}')

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-BASE_PATH = Path('~/shared/packages/skyscraper/')
+BASE_PATH = Path('~/shared/packages/skyscraper/').expanduser()
 DATA_DIR = BASE_PATH / 'data'
 
 try:

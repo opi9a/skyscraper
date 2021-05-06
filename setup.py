@@ -3,6 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'skyscraper',
+    version = '1.0.0',
 
     # sets the root as src
     package_dir = {'': 'src'},
