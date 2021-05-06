@@ -2,10 +2,10 @@
 
 import argparse
 
-from skyscraper_constants import LOG
-from Schedule import Schedule
+from .constants import LOG
+from .Schedule import Schedule
 
-if __name__ == "__main__":
+def run_skyscraper():
 
     parser = argparse.ArgumentParser(
         epilog=('show tv listings for set of channels'
@@ -85,4 +85,7 @@ if __name__ == "__main__":
     if not args.mute:
         schedule.print_df(reverse=args.reverse, max_rows=max_show_rows)
 
+
+if __name__ == '__main__':
+    run_skyscraper()
 

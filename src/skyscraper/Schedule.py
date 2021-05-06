@@ -7,9 +7,9 @@ import pandas as pd
 from termcolor import cprint
 from concurrent.futures import ThreadPoolExecutor
 
-from skyscraper_constants import DATA_DIR, LOG
-from scrape_tv_guide import get_raw_shows
-from print_shows import print_df, make_df_by_show
+from .constants import DATA_DIR, LOG
+from .scrape_tv_guide import get_raw_shows
+from .print_shows import print_df, make_df_by_show
 
 """
 Object and scripts to scrape listings from the tv_guide.co.uk site
@@ -56,7 +56,8 @@ class Schedule():
         # set up some attributes
         data_dir = data_dir or DATA_DIR
         self.date_str = datetime.now().strftime(DATE_FMT)
-        self.save_fp = DATA_DIR / "".join([DAILY_PREFIX, self.date_str, '.csv'])
+        self.save_fp = DATA_DIR / 'raw_shows' / "".join(
+            [DAILY_PREFIX, self.date_str, '.csv'])
         self.include_strings = include_strings or None
         self.exclude_strings = exclude_strings or None
         self.group_by = group_by

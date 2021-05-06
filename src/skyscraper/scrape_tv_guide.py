@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 
-from skyscraper_constants import DATA_DIR, BASE_URL
+from .constants import DATA_DIR, BASE_URL
 
 DATE_FMT = "%Y %m %d"
 TIME_FMT = "%H:%M"

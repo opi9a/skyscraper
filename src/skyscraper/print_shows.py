@@ -6,7 +6,7 @@ from datetime import datetime
 from collections import OrderedDict
 from os import get_terminal_size
 from termcolor import cprint, colored
-# from skyscraper_constants import LOG
+# from constants import LOG
 
 FIELDS_TO_PRINT = ['channel', 'long_day', 'title', 'subtitle',
                    'start_time_str', 'end_time_str']

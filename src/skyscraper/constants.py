@@ -1,10 +1,9 @@
-# skyscraper/skyscraper_constants.py
+# skyscraper/constants.py
 
 from pathlib import Path
 
-# just use the dir the code is in
-BASE_PATH = Path(__file__).parent.absolute()
-DATA_DIR = BASE_PATH / 'data/'
+BASE_PATH = Path('~/shared/packages/skyscraper/')
+DATA_DIR = BASE_PATH / 'data'
 
 try:
     from mylogger import get_timelog
@@ -16,7 +15,7 @@ except:
     LOG = NullLog()
 
 if not DATA_DIR.exists():
-    print('making a directory at')
+    print('making a directory at', DATA_DIR)
     DATA_DIR.mkdir(parents=True)
 
 BASE_URL = "https://www.tvguide.co.uk/mobile/channellisting.asp?ch="

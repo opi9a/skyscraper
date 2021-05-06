@@ -9,6 +9,7 @@ Takes quite a while.  Not expected to be needed much.
 
 import requests
 from bs4 import BeautifulSoup
+from constants import BASE_URL
 
 
 
@@ -18,7 +19,7 @@ def update_tv_guide_channels(channels_data_dir=None):
 
     Not written or implemented, but this is what you'd do
 
-    Channel list currently just as a dict hard pasted in skyscraper_constants
+    Channel list currently just as a dict hard pasted in constants
     """
     pass
 
