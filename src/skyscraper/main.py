@@ -5,7 +5,7 @@ import argparse
 from .constants import LOG
 from .Schedule import Schedule
 
-def run_skyscraper():
+def main():
 
     parser = argparse.ArgumentParser(
         epilog=('show tv listings for set of channels'
@@ -87,5 +87,5 @@ def run_skyscraper():
 
 
 if __name__ == '__main__':
-    run_skyscraper()
+    main()
 
