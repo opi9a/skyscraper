@@ -16,7 +16,7 @@ setup(
     # must point to a function (after the ':')
     entry_points = {
     'console_scripts': [
-        'skyscraper-cli = skyscraper.main:main',
+        'skyscraper-cli = skyscraper.__main__:main',
     ]},
 )
 

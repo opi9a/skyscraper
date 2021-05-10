@@ -1,6 +1,7 @@
-# skyscraper/skyscraper.py
+# skyscraper/src/skyscraper/__main__.py
 
 import argparse
+import sys
 
 from .constants import LOG
 from .Schedule import Schedule
@@ -87,5 +88,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
 
